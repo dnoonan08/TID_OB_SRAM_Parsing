@@ -1,11 +1,11 @@
 import numpy as np
 import glob
 import json
-import pandas as pd 
+import pandas as pd
 from datetime import datetime
 
-packet_word_index = np.loadtxt('packet_word_index.csv',delimiter=',',dtype=int)
-full_capture = np.loadtxt('full_clean_orbit.csv',delimiter=',',dtype=str)
+packet_word_index = np.loadtxt('data/packet_word_index.csv',delimiter=',',dtype=int)
+full_capture = np.loadtxt('data/full_clean_orbit.csv',delimiter=',',dtype=str)
 full_capture = np.vectorize(lambda x: int(x,16))(full_capture)
 daq_stream = full_capture.flatten()
 
@@ -39,7 +39,7 @@ def print_daq_capture_OB_errors(metadata, j, err_idx):
         agree = ''.join(['-' if i else 'X' for i in asic==emu])#"" if (asic==emu).all() else " <<<<"
         print(f"{i:04d} " + ' '.join([f'{x:08x}' for x in asic]) + " | " + ' '.join([f'{x:08x}' for x in emu]) + f" | {count} |" + agree)
 
-        
+
 xray_starts_stops = {1:[(np.datetime64('2024-07-28T17:46'),np.datetime64('2024-07-30T09:06')),],
                      2:[(np.datetime64('2024-07-30T18:53'),np.datetime64('2024-07-31T17:27')),],
                      3:[(np.datetime64('2024-07-18T20:55'),np.datetime64('2024-07-19T15:49')),(np.datetime64('2024-07-19T18:21'),np.datetime64('2024-07-21T23:27'))],
@@ -145,7 +145,7 @@ def parse_sc_from_flist(fnames, xray_start_stop, verbose=False):
 #                 else:
 #                     _tid = (xray_stop-xray_start).astype('timedelta64[s]').astype(int)/3600.*9.2
 
-            if counts[1]==0: 
+            if counts[1]==0:
                 timestamps.append(_t)
                 tid.append(_tid)
                 capture_i_file.append(_i)
@@ -173,7 +173,7 @@ def parse_sc_from_flist(fnames, xray_start_stop, verbose=False):
             capture_i_file.append(_i)
             fname.append(f)
             len_daq_capture.append(len(daq_counter))
-            
+
             if len(daq_counter)<4095:
                 n_sc_bx_7 = np.array(t['word_err_count'])[np.array(t['HasL1A'])==7][:,1].astype(int)
                 n_sc_bx_67 = np.array(t['word_err_count'])[np.array(t['HasL1A'])==67][:,1].astype(int)
@@ -184,8 +184,8 @@ def parse_sc_from_flist(fnames, xray_start_stop, verbose=False):
                 n_bx_capture.append(n_bx)
             else:
                 n_bx_capture.append(daq_counter[-1] - daq_counter[0])
-        
-        
+
+
             if len(daq_asic)>0:
                 #if the lengths are unequal, there is an issue with this capture and we continue
 
@@ -212,7 +212,7 @@ def parse_sc_from_flist(fnames, xray_start_stop, verbose=False):
                 capture_packet_number = (np.cumsum(new_packet))
 
                 #count the number of consecutive errors in this error group
-                n_consec=np.unique(capture_packet_number,return_counts=True)[1]+1            
+                n_consec=np.unique(capture_packet_number,return_counts=True)[1]+1
                 if verbose:
                     print(_i, f, len(daq_asic), len(daq_emu), f"{_tid:.5f}", counts, n)
 
@@ -259,7 +259,7 @@ def parse_sc_from_flist(fnames, xray_start_stop, verbose=False):
                 print(f'issue in {_i} file {f}')
             continue
 
-    
+
     n_ob_errors_per_SRAM = np.array(n_ob_errors_per_SRAM)
     n_ob_errors_per_packet_num = np.array(n_ob_errors_per_packet_num)
     df = pd.DataFrame({'file_num':full_i_file,
@@ -272,7 +272,7 @@ def parse_sc_from_flist(fnames, xray_start_stop, verbose=False):
     df['duringTID'] = (df.TID>0) & (df.TID<df.TID.values[-1])
     df['ob_sram'] = df.err_packet_word_num%12
 
-        
+
 
 
     df_tot = pd.DataFrame({'file_num':capture_i_file,
@@ -288,14 +288,14 @@ def parse_sc_from_flist(fnames, xray_start_stop, verbose=False):
     df_tot['duringTID'] = (df_tot.TID>0) & (df_tot.TID<df_tot.TID.values[-1])
 
     return df_tot, df
-    
 
-    
-    
+
+
+
 
 def parse_single_file(file_name,voltage):
     data = json.load(open(file_name))
-    
+
     for _t in data['tests']:
         if _t['nodeid']!=f'test_TID.py::test_streamCompareLoop[{voltage}]':
             continue
@@ -316,7 +316,7 @@ def parse_single_file(file_name,voltage):
         n_captures = new_capture.sum()
 
         mismatch_idx = np.argwhere(~(daq_asic==daq_emu).flatten()).flatten()
-        is_ob_err= (((np.roll(mismatch_idx,-1) - mismatch_idx)==12) & 
+        is_ob_err= (((np.roll(mismatch_idx,-1) - mismatch_idx)==12) &
                     ((daq_emu.flatten()[mismatch_idx]>>8)!=0x555555) &
                     ((daq_emu.flatten()[np.roll(mismatch_idx,1)]>>8)!=0x555555) &
                     ((np.roll(mismatch_idx,-2) - mismatch_idx)>=24)
@@ -333,8 +333,8 @@ def parse_single_file(file_name,voltage):
                )
 
             print(i,(k).sum())
-    
-    
+
+
         err_idx=(mismatch_idx[is_ob_err]/6).astype(int)
         etx_idx = (mismatch_idx[is_ob_err]%6)
 
