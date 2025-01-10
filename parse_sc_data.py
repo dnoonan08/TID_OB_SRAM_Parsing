@@ -8,6 +8,65 @@ packet_word_index = np.loadtxt('data/packet_word_index.csv',delimiter=',',dtype=
 full_capture = np.loadtxt('data/full_clean_orbit.csv',delimiter=',',dtype=str)
 full_capture = np.vectorize(lambda x: int(x,16))(full_capture)
 daq_stream = full_capture.flatten()
+isIdle = (daq_stream==0x55555500)
+nonMandatoryIdle = (isIdle & np.roll(isIdle,1))
+sram_data = daq_stream[~nonMandatoryIdle]
+
+
+def checkErr(fname,i=0):
+    df=parse_sram_errors_per_packet(fname,sram_data)
+    sum_cols = ['isOBErrors',
+                'isSingleError',
+                'isBadPacketCRC',
+                'isBadPacketHeader',
+                'isSingleError_SingleBit',
+                'isSingleError_MultiBit',
+                'isSingleError_SingleBit_SpecialPackets',
+                'isSingleError_MultiBit_SpecialPackets',
+                'isOBErrors_SpecialPackets',
+               ]
+    
+    y=df[1].set_index('voltages')[['n_captured_bx','n_captures','n_packets','word_count','error_count']]
+
+    if not df[0] is None:
+        df[0]['isSpecialPacket'] = df[0].packet_number.isin([3,4,11,27,32,33,49])
+        df[0]['isSingleError_SingleBit'] = df[0].isSingleError & (df[0].asic_emu_bit_diff_0==1)
+        df[0]['isSingleError_MultiBit'] = df[0].isSingleError & (df[0].asic_emu_bit_diff_0>1)
+
+        df[0]['isSingleError_SingleBit_SpecialPackets'] = df[0].isSingleError_SingleBit & df[0].isSpecialPacket
+        df[0]['isSingleError_MultiBit_SpecialPackets'] = df[0].isSingleError_MultiBit & df[0].isSpecialPacket
+        df[0]['isOBErrors_SpecialPackets'] = df[0].isOBErrors & df[0].isSpecialPacket
+
+        x=df[0].groupby('voltages').sum()[sum_cols]
+        z=y.merge(x,left_index=True,right_index=True,how='left').fillna(0)
+    else:
+        z = y
+        z[sum_cols] = 0
+
+    z['error_rate'] = (z.isOBErrors + z.isSingleError)/(z.n_captured_bx/3564*67)
+    z['run'] = i
+    z = z.astype({c: int for c in sum_cols})
+    return z, df[0]
+
+### function which merges split-out daq capture data (from January TID runs) back into a single json file
+def merge_jsons(fname, old_dir_name='json_files', new_dir_name='merged_jsons'):
+    data = json.load(open(fname))
+    for t in data['tests']:
+        if 'streamCom' in t['nodeid']:
+            v = t['metadata']['voltage']
+            sc_fname = fname.replace('.json',f'_streamcompare_{round(v*100):03d}.json')
+            sc_data = json.load(open(sc_fname))
+            for k in sc_data.keys():
+                t['metadata'][k] = sc_data[k]
+    newName = fname.replace(old_dir_name,new_dir_name)
+    if newName==fname:
+        print('ISSUE WITH NAMING NEW FILE')
+        print('  try checking that new and old directory names are appropriate')
+        print('  old dir name={old_dir_name}')
+        print('  new dir name={new_dir_name}')
+        return
+    json.dump(data,open(fname.replace('json_files','merged_jsons'),'w'))
+    return newName
 
 def print_daq_capture(metadata, j, N=4096):
     print(metadata['voltage'])
@@ -110,7 +169,7 @@ def print_data_from_parsed_dataframe(row, print_diff=False):
     print_packet(daq_asic, daq_emu, daq_count, daq_idx, print_diff)
     return daq_asic, daq_emu
 
-def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = False, debug_print=False):
+def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = False, debug_print=False, reset_sc_counts=False):
 
     #initialize lists
     isOBErrors, isBadPacketCRC, isBadPacketHeader = [],[],[],
@@ -204,14 +263,14 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
         n_sc_bx = 0
         err_cnt = 0
         if nl1a==7:
-            if len(n_sc_bx_0)>0:
+            if reset_sc_counts and len(n_sc_bx_0)>0:
                 n_sc_bx = n_sc_bx_7[-1] - n_sc_bx_0[-1]
                 err_cnt = err_cnt_7[-1] - err_cnt_0[-1]
             else:
                 n_sc_bx = n_sc_bx_7[-1]
                 err_cnt_bx = err_cnt_7[-1]
         if nl1a==67:
-            if len(n_sc_bx_7)>0:
+            if reset_sc_counts and len(n_sc_bx_7)>0:
                 n_sc_bx = n_sc_bx_67[-1] - n_sc_bx_7[-1]
                 err_cnt = err_cnt_67[-1] - err_cnt_7[-1]
             else:
