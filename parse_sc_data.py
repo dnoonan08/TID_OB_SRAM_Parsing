@@ -25,8 +25,8 @@ def checkErr(fname,i=0):
                 'isSingleError_MultiBit_SpecialPackets',
                 'isOBErrors_SpecialPackets',
                ]
-    
-    y=df[1].set_index('voltages')[['n_captured_bx','n_captures','n_packets','word_count','error_count']]
+
+    y=df[1].set_index('voltages')[['n_captured_bx','n_captures','n_packets','word_count','error_count','timestamp','current','temperature']]
 
     if not df[0] is None:
         df[0]['isSpecialPacket'] = df[0].packet_number.isin([3,4,11,27,32,33,49])
@@ -65,7 +65,7 @@ def merge_jsons(fname, old_dir_name='json_files', new_dir_name='merged_jsons'):
         print('  old dir name={old_dir_name}')
         print('  new dir name={new_dir_name}')
         return
-    json.dump(data,open(fname.replace('json_files','merged_jsons'),'w'))
+    json.dump(data,open(newName,'w'))
     return newName
 
 def print_daq_capture(metadata, j, N=4096):
@@ -182,8 +182,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
     error_word_counter_0, error_word_counter_1, error_word_counter_2, error_word_counter_3 = [],[],[],[]
 
     total_captures, total_packets, total_fifo_occupancy = [], [], []
+    total_timestamp = []
     total_word_count, total_error_count = [],[]
-    total_mean_temperatur, total_std_temperature, total_mean_current, total_std_current = [],[],[],[]
+    total_mean_temperature, total_std_temperature, total_mean_current, total_std_current = [],[],[],[]
     total_capture_length_bx = []
     total_voltages, total_file_names, total_test_number, total_test_name, total_lc_number = [],[],[],[],[]
     total_n_erx, total_n_etx = [],[]
@@ -285,7 +286,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
 
         for c in capt_idx67:
 #             print(c)
-
+            daq_timestamp = t['Timestamp-DAQ'][c]
             try:
                 daq_asic    = np.array(t['DAQ_asic'][c])
             except:
@@ -296,6 +297,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 total_fifo_occupancy.append(0)
                 total_captures.append(0)
                 total_packets.append(0)
+                total_timestamp.append(daq_timestamp)
+                total_mean_current.append(mean_current)
+                total_mean_temperature.append(mean_temperature)
                 total_capture_length_bx.append(n_sc_bx)
                 total_word_count.append(n_sc_bx)
                 total_error_count.append(err_cnt)
@@ -323,6 +327,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 total_fifo_occupancy.append(-1)
                 total_captures.append(-1)
                 total_packets.append(-1)
+                total_timestamp.append(daq_timestamp)
+                total_mean_current.append(mean_current)
+                total_mean_temperature.append(mean_temperature)
                 total_capture_length_bx.append(n_sc_bx)
                 total_word_count.append(n_sc_bx)
                 total_error_count.append(err_cnt)
@@ -344,6 +351,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                     total_fifo_occupancy.append(-1)
                     total_captures.append(-1)
                     total_packets.append(-1)
+                    total_timestamp.append(daq_timestamp)
+                    total_mean_current.append(mean_current)
+                    total_mean_temperature.append(mean_temperature)
                     total_capture_length_bx.append(n_sc_bx)
                     total_word_count.append(n_sc_bx)
                     total_error_count.append(err_cnt)
@@ -367,6 +377,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 total_fifo_occupancy.append(-1)
                 total_captures.append(-1)
                 total_packets.append(-1)
+                total_timestamp.append(daq_timestamp)
+                total_mean_current.append(mean_current)
+                total_mean_temperature.append(mean_temperature)
                 total_capture_length_bx.append(n_sc_bx)
                 total_word_count.append(n_sc_bx)
                 total_error_count.append(err_cnt)
@@ -439,6 +452,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             total_fifo_occupancy.append(len(daq_asic))
             total_captures.append(n_captures)
             total_packets.append(len(packets_asic))
+            total_timestamp.append(daq_timestamp)
+            total_mean_current.append(mean_current)
+            total_mean_temperature.append(mean_temperature)
             if len(daq_asic)>=4095:
                 total_capture_length_bx.append(daq_counter[-1] - daq_counter[0] + 1)
             else:
@@ -517,6 +533,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             'lc_number':total_lc_number,
             'word_count':total_word_count,
             'error_count':total_error_count,
+            'timestamp':total_timestamp,
+            'temperature':total_mean_temperature,
+            'current':total_mean_current,
             'n_erx':total_n_erx,
             'n_etx':total_n_etx,
         })
