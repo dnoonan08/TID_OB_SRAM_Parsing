@@ -3,6 +3,7 @@ import glob
 import json
 import pandas as pd
 from datetime import datetime
+import os
 
 packet_word_index = np.loadtxt('data/packet_word_index.csv',delimiter=',',dtype=int)
 full_capture = np.loadtxt('data/full_clean_orbit.csv',delimiter=',',dtype=str)
@@ -11,6 +12,86 @@ daq_stream = full_capture.flatten()
 isIdle = (daq_stream==0x55555500)
 nonMandatoryIdle = (isIdle & np.roll(isIdle,1))
 sram_data = daq_stream[~nonMandatoryIdle]
+
+def getBISTresults(fname):
+    data = json.load(open(fname))
+
+    voltages = np.array(data['tests'][-1]['metadata']['voltages'])
+    timestamps = np.array(data['tests'][-1]['metadata']['timestamps'])
+    try:
+        b = np.array(data['tests'][-1]['metadata']['bist_results'])
+        b_pp = b[:,4:]
+        b_ob = b[:,:4]
+    except:
+        b_pp = np.array(data['tests'][-1]['metadata']['ppResults'])
+        b_ob = np.array(data['tests'][-1]['metadata']['obResults'])
+
+    if (b_pp==4095).any():
+        _pp_min = voltages[(b_pp==4095).all(axis=1)].min()
+    else:
+        _pp_min = 1.5
+    if (b_ob==4095).any():
+        _ob_min = voltages[(b_ob==4095).all(axis=1)].min()
+    else:
+        _ob_min = 1.5
+    print('PP BIST min voltage', _pp_min)
+    print('OB BIST min voltage', _ob_min)
+
+    d_bist = pd.DataFrame({"voltages":voltages,
+                           "timestamps":timestamps,
+                           "PPbist_1":b_pp[:,0],
+                           "PPbist_2":b_pp[:,1],
+                           "PPbist_3":b_pp[:,2],
+                           "PPbist_4":b_pp[:,3],
+                           "OBbist_1":b_ob[:,0],
+                           "OBbist_2":b_ob[:,1],
+                           "OBbist_3":b_ob[:,2],
+                           "OBbist_4":b_ob[:,3],
+                           "file":fname,
+                          })
+    d_bist.voltages = (d_bist.voltages.values).round(3)
+    d_bist.set_index('voltages',inplace=True)
+        
+    d_bist['pass_PP_bist'] = (d_bist[[f'PPbist_{i}' for i in [1,2,3,4]]]==4095).all(axis=1)
+    d_bist['pass_OB_bist'] = (d_bist[[f'OBbist_{i}' for i in [1,2,3,4]]]==4095).all(axis=1)
+    d_bist['PP_bist_01'] = d_bist[f'PPbist_1'].apply(lambda x: f'{x:012b}')
+    d_bist['OB_bist_01'] = d_bist[f'OBbist_1'].apply(lambda x: f'{x:012b}')
+
+    return d_bist
+
+def getParsedTables(fname, forceReprocess=False):
+    fname_totals = fname.replace('.json','_totals.csv').replace('merged_jsons','parsed')
+    fname_packets = fname.replace('.json','_packets.csv').replace('merged_jsons','parsed')
+    fname_bist = fname.replace('.json','_bist.csv').replace('merged_jsons','parsed')
+    already_parsed = (os.path.exists(fname_totals) & 
+                      os.path.exists(fname_packets) & 
+                      os.path.exists(fname_bist)
+                     ) & ~forceReprocess
+    if already_parsed:
+        d_tot = pd.read_csv(fname_totals,index_col='voltages')
+        df = pd.read_csv(fname_packets,index_col=0)
+        d_bist = pd.read_csv(fname_bist)
+    else:
+        print(fname)
+        d_tot, df = checkErr(fname)
+
+        d_bist = getBISTresults(fname)
+        
+        d_tot = d_tot.merge(d_bist[['pass_PP_bist','pass_OB_bist','PP_bist_01','OB_bist_01']],left_index=True,right_index=True,how='left').sort_index()
+        d_tot.timestamp = pd.to_datetime(d_tot.timestamp)
+
+        #if we pass bist at 1.19, fill rest as pass
+        if d_bist.loc[1.19].pass_PP_bist:
+            d_tot.PP_bist_01 = d_tot.PP_bist_01.fillna('111111111111').astype(object)
+            d_tot.pass_PP_bist = d_tot.pass_PP_bist.astype(bool).fillna(True)
+        if d_bist.loc[1.19].pass_OB_bist:
+            d_tot.OB_bist_01 = d_tot.OB_bist_01.fillna('111111111111').astype(object)
+            d_tot.pass_OB_bist = d_tot.pass_OB_bist.astype(bool).fillna(True)
+
+        df['file'] = fname
+        d_tot['file'] = fname
+        d_tot.sort_index(inplace=True)
+    return d_tot, df, d_bist
 
 
 def checkErr(fname,i=0):
@@ -26,8 +107,11 @@ def checkErr(fname,i=0):
                 'isOBErrors_SpecialPackets',
                ]
 
-    y=df[1].set_index('voltages')[['n_captured_bx','n_captures','n_packets','word_count','error_count','timestamp','current','temperature']]
-
+    ###fix that allows dropping the last lc buffer readout from the sums, if there are more than 1
+    # y=df[1].set_index('voltages')[['n_captured_bx','n_captures','n_packets','word_count','error_count','timestamp','current','temperature']]
+    y=df[1][['voltages','n_captures','n_packets','n_captured_bx']].groupby('voltages').apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
+    y[['word_count','error_count','timestamp','current','temperature']]=df[1].groupby('voltages')[['word_count','error_count','timestamp','current','temperature']].first()
+    
     if not df[0] is None:
         df[0]['isSpecialPacket'] = df[0].packet_number.isin([3,4,11,27,32,33,49])
         df[0]['isSingleError_SingleBit'] = df[0].isSingleError & (df[0].asic_emu_bit_diff_0==1)
@@ -36,8 +120,10 @@ def checkErr(fname,i=0):
         df[0]['isSingleError_SingleBit_SpecialPackets'] = df[0].isSingleError_SingleBit & df[0].isSpecialPacket
         df[0]['isSingleError_MultiBit_SpecialPackets'] = df[0].isSingleError_MultiBit & df[0].isSpecialPacket
         df[0]['isOBErrors_SpecialPackets'] = df[0].isOBErrors & df[0].isSpecialPacket
-
-        x=df[0].groupby('voltages').sum()[sum_cols]
+        
+        ###fix that allows dropping the last lc buffer readout from the sums, if there are more than 1
+        # x=df[0].groupby('voltages').sum()[sum_cols]
+        x=df[0].groupby(['voltages','lc_number']).sum()[sum_cols].groupby(['voltages']).apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
         z=y.merge(x,left_index=True,right_index=True,how='left').fillna(0)
     else:
         z = y
@@ -53,6 +139,8 @@ def merge_jsons(fname, old_dir_name='json_files', new_dir_name='merged_jsons'):
     data = json.load(open(fname))
     for t in data['tests']:
         if 'streamCom' in t['nodeid']:
+            if t['outcome']=='error':
+                continue
             v = t['metadata']['voltage']
             sc_fname = fname.replace('.json',f'_streamcompare_{round(v*100):03d}.json')
             sc_data = json.load(open(sc_fname))
