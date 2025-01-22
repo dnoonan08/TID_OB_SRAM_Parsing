@@ -63,12 +63,12 @@ def getBISTresults(fname):
 
     return d_bist
 
-def getParsedTables(fname, forceReprocess=False):
+def getParsedTables(fname, forceReprocess=False, debug_print=False):
     fname_totals = fname.replace('.json','_totals.csv').replace('merged_jsons','parsed')
     fname_packets = fname.replace('.json','_packets.csv').replace('merged_jsons','parsed')
     fname_bist = fname.replace('.json','_bist.csv').replace('merged_jsons','parsed')
-    already_parsed = (os.path.exists(fname_totals) & 
-                      os.path.exists(fname_packets) & 
+    already_parsed = (os.path.exists(fname_totals) &
+                      os.path.exists(fname_packets) &
                       os.path.exists(fname_bist)
                      ) & ~forceReprocess
     if already_parsed:
@@ -77,10 +77,10 @@ def getParsedTables(fname, forceReprocess=False):
         d_bist = pd.read_csv(fname_bist)
     else:
         print(fname)
-        d_tot, df = checkErr(fname)
+        d_tot, df = checkErr(fname, debug_print=debug_print)
 
         d_bist = getBISTresults(fname)
-        
+
         d_tot = d_tot.merge(d_bist[['pass_PP_bist','pass_OB_bist','PP_bist_01','OB_bist_01']],left_index=True,right_index=True,how='left').sort_index()
         d_tot.timestamp = pd.to_datetime(d_tot.timestamp)
 
@@ -98,8 +98,8 @@ def getParsedTables(fname, forceReprocess=False):
     return d_tot, df, d_bist
 
 
-def checkErr(fname,i=0):
-    df=parse_sram_errors_per_packet(fname,sram_data)
+def checkErr(fname,i=0, debug_print=False):
+    df=parse_sram_errors_per_packet(fname,sram_data, debug_print=debug_print)
     sum_cols = ['isOBErrors',
                 'isSingleError',
                 'isBadPacketCRC',
@@ -115,7 +115,7 @@ def checkErr(fname,i=0):
     # y=df[1].set_index('voltages')[['n_captured_bx','n_captures','n_packets','word_count','error_count','timestamp','current','temperature']]
     y=df[1][['voltages','n_captures','n_packets','n_captured_bx']].groupby('voltages').apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
     y[['word_count','error_count','timestamp','current','temperature']]=df[1].groupby('voltages')[['word_count','error_count','timestamp','current','temperature']].first()
-    
+
     if not df[0] is None:
         df[0]['isSpecialPacket'] = df[0].packet_number.isin([3,4,11,27,32,33,49])
         df[0]['isSingleError_SingleBit'] = df[0].isSingleError & (df[0].asic_emu_bit_diff_0==1)
@@ -124,7 +124,7 @@ def checkErr(fname,i=0):
         df[0]['isSingleError_SingleBit_SpecialPackets'] = df[0].isSingleError_SingleBit & df[0].isSpecialPacket
         df[0]['isSingleError_MultiBit_SpecialPackets'] = df[0].isSingleError_MultiBit & df[0].isSpecialPacket
         df[0]['isOBErrors_SpecialPackets'] = df[0].isOBErrors & df[0].isSpecialPacket
-        
+
         ###fix that allows dropping the last lc buffer readout from the sums, if there are more than 1
         # x=df[0].groupby('voltages').sum()[sum_cols]
         x=df[0].groupby(['voltages','lc_number']).sum()[sum_cols].groupby(['voltages']).apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
@@ -263,6 +263,8 @@ def print_data_from_parsed_dataframe(row, print_diff=False):
 
 def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = False, debug_print=False, reset_sc_counts=False):
 
+    if debug_print:
+        print('DEBUG')
     #initialize lists
     isOBErrors, isBadPacketCRC, isBadPacketHeader = [],[],[],
     n_tot_errors, n_ob_errors = [],[]
@@ -415,26 +417,26 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 if debug_print: print(f'mismatch and asic and emulator capture lengths, skipping {tname} {c}')
                 continue
 
-            if (daq_emu!=daq_asic).sum()>16000:
-                total_fifo_occupancy.append(-1)
-                total_captures.append(-1)
-                total_packets.append(-1)
-                total_timestamp.append(daq_timestamp)
-                total_mean_current.append(mean_current)
-                total_mean_temperature.append(mean_temperature)
-                total_capture_length_bx.append(n_sc_bx)
-                total_word_count.append(n_sc_bx)
-                total_error_count.append(err_cnt)
-                total_voltages.append(voltage)
-                total_file_names.append(file_name)
-                total_test_number.append(t_idx)
-                total_test_name.append(tname)
-                total_lc_number.append(c)
-                total_n_erx.append(_n_erx)
-                total_n_etx.append(_n_etx)
+            # if (daq_emu!=daq_asic).sum()>16000:
+            #     total_fifo_occupancy.append(-1)
+            #     total_captures.append(-1)
+            #     total_packets.append(-1)
+            #     total_timestamp.append(daq_timestamp)
+            #     total_mean_current.append(mean_current)
+            #     total_mean_temperature.append(mean_temperature)
+            #     total_capture_length_bx.append(n_sc_bx)
+            #     total_word_count.append(n_sc_bx)
+            #     total_error_count.append(err_cnt)
+            #     total_voltages.append(voltage)
+            #     total_file_names.append(file_name)
+            #     total_test_number.append(t_idx)
+            #     total_test_name.append(tname)
+            #     total_lc_number.append(c)
+            #     total_n_erx.append(_n_erx)
+            #     total_n_etx.append(_n_etx)
 
-                print(f'Corrupted data capture (V={voltage:.02f}), skipping')
-                continue
+            #     print(f'Too many errors (V={voltage:.02f}), skipping')
+            #     continue
             #looking for corrupted captures, identifiable in TID captures as spot where idles appear in column N but not N+1 of emulator
             isIdles = (daq_emu>>8)==0x555555
             corruptedData = False
@@ -557,6 +559,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                         packets_emu.append(daq_emu[capt_idx:new_capture_arg[i+1]].flatten().tolist())
                         packets_counter.append(daq_counter[capt_idx:new_capture_arg[i+1]].flatten().tolist())
                         packets_idx.append(idx[capt_idx:new_capture_arg[i+1]].flatten().tolist())
+
             if (count_errors>0):
                 print('Problems splitting packets, skipping')
                 continue
