@@ -17,7 +17,11 @@ def getBISTresults(fname):
     data = json.load(open(fname))
 
     voltages = np.array(data['tests'][-1]['metadata']['voltages'])
-    timestamps = np.array(data['tests'][-1]['metadata']['timestamps'])
+    try:
+        timestamps = np.array(data['tests'][-1]['metadata']['timestamps'])
+    except:
+        timestamps = np.datetime64('2025-01-01')
+
     try:
         b = np.array(data['tests'][-1]['metadata']['bist_results'])
         b_pp = b[:,4:]
@@ -51,7 +55,7 @@ def getBISTresults(fname):
                           })
     d_bist.voltages = (d_bist.voltages.values).round(3)
     d_bist.set_index('voltages',inplace=True)
-        
+
     d_bist['pass_PP_bist'] = (d_bist[[f'PPbist_{i}' for i in [1,2,3,4]]]==4095).all(axis=1)
     d_bist['pass_OB_bist'] = (d_bist[[f'OBbist_{i}' for i in [1,2,3,4]]]==4095).all(axis=1)
     d_bist['PP_bist_01'] = d_bist[f'PPbist_1'].apply(lambda x: f'{x:012b}')
@@ -501,15 +505,15 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             count_errors = 0
             #loop through all captures, grouping into packets
             for i, capt_idx in enumerate(new_capture_arg[:-1]):
-                #if first capture, or previous capture was started more than 60 BX before, start new packet
-                if i==0 or (daq_counter[new_capture_arg[i]] - daq_counter[new_capture_arg[i-1]])>50:
+                #if first capture, or previous capture was started more than 80 BX before, start new packet
+                if i==0 or (daq_counter[new_capture_arg[i]] - daq_counter[new_capture_arg[i-1]])>80:
                     packets_asic.append(daq_asic[capt_idx:new_capture_arg[i+1]].flatten().tolist())
                     packets_emu.append(daq_emu[capt_idx:new_capture_arg[i+1]].flatten().tolist())
                     packets_counter.append(daq_counter[capt_idx:new_capture_arg[i+1]].flatten().tolist())
                     packets_idx.append(idx[capt_idx:new_capture_arg[i+1]].flatten().tolist())
                 else:
                     #find packet number for this capture and previous capture
-                    this_capt_daq_emu_line = daq_emu[new_capture_arg[i]+3][2:]
+                    this_capt_daq_emu_line = daq_emu[new_capture_arg[i]][2:]
                     last_capt_daq_emu_line = daq_emu[new_capture_arg[i-1]+3][2:]
 
                     #if we can't find emulator data in full capture, indicates a problem
