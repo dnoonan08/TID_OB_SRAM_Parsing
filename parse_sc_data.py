@@ -494,6 +494,26 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
 
             new_capture_arg = np.argwhere(new_capture).flatten().tolist() + [None]
 
+            ###Update the capture arguments, to split single captures if there are more than one packet in it
+            updated_capture_arg = []
+            for i, capt_idx in enumerate(new_capture_arg[:-1]):
+
+                start_idx = new_capture_arg[i]
+
+                capture_emu = daq_emu[new_capture_arg[i]:new_capture_arg[i+1]]
+                capture_asic = daq_asic[new_capture_arg[i]:new_capture_arg[i+1]]
+
+                idx_has_idles_asic = ((capture_asic>>8)==0x555555).all(axis=1)
+                idx_has_idles_emu  = ((capture_emu>>8)==0x555555).all(axis=1)
+                idx_has_idles = idx_has_idles_asic & idx_has_idles_emu
+
+                packet_split_idx = (np.argwhere((idx_has_idles & np.roll(idx_has_idles,-1) & np.roll(idx_has_idles,-2) & ~np.roll(idx_has_idles,-3))[:-4]).flatten() + start_idx).tolist()
+                if not start_idx in packet_split_idx:
+                    packet_split_idx.append(start_idx)
+                updated_capture_arg += packet_split_idx
+            updated_capture_arg.sort()
+            new_capture_arg = np.array(updated_capture_arg + [None])
+
             #make lists of all packets
             packets_asic = []
             packets_emu = []
