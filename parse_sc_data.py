@@ -398,7 +398,15 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
         temperature = np.array(t['Temperature'])
         current = np.array(t['Current'])
         hasL1A    = np.array(t['HasL1A'])
-        mean_current, std_current = current[hasL1A==nl1a].mean(), current[hasL1A==nl1a].std()
+
+        #find cases where first current is an outlier/stale data
+        #if mean is pulled by first entry, remove first entry
+        c = current[hasL1A==nl1a]
+        residual = (c-c.mean())/c.std()
+        #if residual of first reading is one sign, and all other residuals are opposite sign, first reading is pulling measurement and should be skipped
+        if ((residual[0]<0) & (residual[1:]>0).all()) or ((residual[0]>0) & (residual[1:]<0).all()):
+            c = current[hasL1A==nl1a][1:]
+        mean_current, std_current = c.mean(), c.std()
         mean_temperature, std_temperature = temperature[hasL1A==nl1a].mean(), temperature[hasL1A==nl1a].std()
 
         for c in capt_idx67:
