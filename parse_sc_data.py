@@ -16,19 +16,36 @@ sram_data = daq_stream[~nonMandatoryIdle]
 def getBISTresults(fname):
     data = json.load(open(fname))
 
-    voltages = np.array(data['tests'][-1]['metadata']['voltages'])
+    found_BIST_data = False
+    for _t in data['tests'][::-1]:
+        if _t['nodeid']=='test_bist_threshold.py::test_bist_full':
+            found_BIST_data = True
+            break
+        if _t['nodeid']=='test_TID_configurable.py::test_bist':
+            found_BIST_data = True
+            break
+        if _t['nodeid']=='test_TID.py::test_bist':
+            found_BIST_data = True
+            break
+    if not found_BIST_data:
+        print('No BIST data found')
+        return None
+
+    t = _t['metadata']
+
+    voltages = np.array(t['voltages'])
     try:
-        timestamps = np.array(data['tests'][-1]['metadata']['timestamps'])
+        timestamps = np.array(t['timestamps'])
     except:
         timestamps = np.datetime64('2025-01-01')
 
     try:
-        b = np.array(data['tests'][-1]['metadata']['bist_results'])
+        b = np.array(t['bist_results'])
         b_pp = b[:,4:]
         b_ob = b[:,:4]
     except:
-        b_pp = np.array(data['tests'][-1]['metadata']['ppResults'])
-        b_ob = np.array(data['tests'][-1]['metadata']['obResults'])
+        b_pp = np.array(t['ppResults'])
+        b_ob = np.array(t['obResults'])
 
     if (b_pp==4095).any():
         _pp_min = voltages[(b_pp==4095).all(axis=1)].min()
@@ -40,7 +57,6 @@ def getBISTresults(fname):
         _ob_min = 1.5
     print('PP BIST min voltage', _pp_min)
     print('OB BIST min voltage', _ob_min)
-
     d_bist = pd.DataFrame({"voltages":voltages,
                            "timestamps":timestamps,
                            "PPbist_1":b_pp[:,0],
@@ -63,6 +79,7 @@ def getBISTresults(fname):
 
     return d_bist
 
+
 def getParsedTables(fname, forceReprocess=False, debug_print=False):
     fname_totals = fname.replace('.json','_totals.csv').replace('merged_jsons','parsed')
     fname_packets = fname.replace('.json','_packets.csv').replace('merged_jsons','parsed')
@@ -80,17 +97,23 @@ def getParsedTables(fname, forceReprocess=False, debug_print=False):
         d_tot, df = checkErr(fname, debug_print=debug_print)
 
         d_bist = getBISTresults(fname)
-
-        d_tot = d_tot.merge(d_bist[['pass_PP_bist','pass_OB_bist','PP_bist_01','OB_bist_01']],left_index=True,right_index=True,how='left').sort_index()
+        if not d_bist is None:
+            d_tot = d_tot.merge(d_bist[['pass_PP_bist','pass_OB_bist','PP_bist_01','OB_bist_01']],left_index=True,right_index=True,how='left').sort_index()
+        else:
+            d_tot['pass_PP_bist'] = False
+            d_tot['pass_OB_bist'] = False
+            d_tot['PP_bist_01'] = 'xxxxxxxxxxxx'
+            d_tot['OB_bist_01'] = 'xxxxxxxxxxxx'
         d_tot.timestamp = pd.to_datetime(d_tot.timestamp)
 
         #if we pass bist at 1.19, fill rest as pass
-        if d_bist.loc[1.19].pass_PP_bist:
-            d_tot.PP_bist_01 = d_tot.PP_bist_01.fillna('111111111111').astype(object)
-            d_tot.pass_PP_bist = d_tot.pass_PP_bist.astype(bool).fillna(True)
-        if d_bist.loc[1.19].pass_OB_bist:
-            d_tot.OB_bist_01 = d_tot.OB_bist_01.fillna('111111111111').astype(object)
-            d_tot.pass_OB_bist = d_tot.pass_OB_bist.astype(bool).fillna(True)
+        if not d_bist is None:
+            if d_bist.loc[1.19].pass_PP_bist:
+                d_tot.PP_bist_01 = d_tot.PP_bist_01.fillna('111111111111').astype(object)
+                d_tot.pass_PP_bist = d_tot.pass_PP_bist.astype(bool).fillna(True)
+            if d_bist.loc[1.19].pass_OB_bist:
+                d_tot.OB_bist_01 = d_tot.OB_bist_01.fillna('111111111111').astype(object)
+                d_tot.pass_OB_bist = d_tot.pass_OB_bist.astype(bool).fillna(True)
 
         df['file'] = fname
         d_tot['file'] = fname
@@ -213,7 +236,7 @@ def print_packet(d_asic,d_emu,d_count,d_idx, print_diff = False):
 def parse_packet_errors(d_asic, d_emu, d_count, d_idx):
     mismatch_idx = np.argwhere(~(d_asic==d_emu)).flatten()
     if len(mismatch_idx)==0:
-        print('Packet Has Zero Errors', d_idx[0])
+        # print('Packet Has Zero Errors', d_idx[0])
         return -1,0,0,0,0,0,0,0,0
     first_mismatch_packet_word_index = packet_word_index[np.argwhere((full_capture[:,2:]==d_emu[20:24]).all(axis=1))[0,0]][mismatch_idx[0]%6]
 
@@ -308,9 +331,9 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
         if not _t['setup']['outcome']=='passed':
             print('Setup erred out')
             continue
-#         if _t['outcome']=='error':
-#             if debug_print: print('Test erred out')
-#             continue
+        if _t['outcome']=='error':
+            if debug_print: print('Test erred out')
+            continue
 
         if not 'metadata' in _t:
             if debug_print: print('No Metadata')
