@@ -238,7 +238,11 @@ def parse_packet_errors(d_asic, d_emu, d_count, d_idx):
     if len(mismatch_idx)==0:
         # print('Packet Has Zero Errors', d_idx[0])
         return -1,0,0,0,0,0,0,0,0
-    first_mismatch_packet_word_index = packet_word_index[np.argwhere((full_capture[:,2:]==d_emu[20:24]).all(axis=1))[0,0]][mismatch_idx[0]%6]
+
+    try:
+        first_mismatch_packet_word_index = packet_word_index[np.argwhere((full_capture[:,2:]==d_emu[20:24]).all(axis=1))[0,0]][mismatch_idx[0]%6]
+    except:
+        first_mismatch_packet_word_index = -1
 
     #we have a mismatch that has the 9-bit packet header the previous word is an IDLE
     isBadPacketHeader = (((d_emu[mismatch_idx]>>23)==0x1e6) & ((d_emu[mismatch_idx-1]>>8)==0x555555)).any()
@@ -558,6 +562,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             count_errors = 0
             #loop through all captures, grouping into packets
             for i, capt_idx in enumerate(new_capture_arg[:-1]):
+
                 #if first capture, or previous capture was started more than 80 BX before, start new packet
                 if i==0 or (daq_counter[new_capture_arg[i]] - daq_counter[new_capture_arg[i-1]])>80:
                     packets_asic.append(daq_asic[capt_idx:new_capture_arg[i+1]].flatten().tolist())
@@ -571,8 +576,8 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
 
                     #if we can't find emulator data in full capture, indicates a problem
                     try:
-                        this_capt_idx = np.argwhere(full_capture[:,2:]==this_capt_daq_emu_line)[0][0]
-                        last_capt_idx = np.argwhere(full_capture[:,2:]==last_capt_daq_emu_line)[0][0]
+                        this_capt_idx = np.argwhere((full_capture[:,2:]==this_capt_daq_emu_line).all(axis=1))[0][0]
+                        last_capt_idx = np.argwhere((full_capture[:,2:]==last_capt_daq_emu_line).all(axis=1))[0][0]
                     except:
                         count_errors += 1
                         continue
@@ -592,6 +597,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                         packets_idx.append(idx[capt_idx:new_capture_arg[i+1]].flatten().tolist())
 
             if (count_errors>0):
+                print(count_errors)
                 print('Problems splitting packets, skipping')
                 continue
 
