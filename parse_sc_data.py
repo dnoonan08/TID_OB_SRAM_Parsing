@@ -93,7 +93,7 @@ def getParsedTables(fname, forceReprocess=False, debug_print=False):
     if already_parsed:
         d_tot = pd.read_csv(fname_totals,index_col='voltages')
         df = pd.read_csv(fname_packets,index_col=0)
-        d_bist = pd.read_csv(fname_bist)
+        d_bist = pd.read_csv(fname_bist,index_col='voltages')
     else:
         # print(fname)
         d_tot, df = checkErr(fname, debug_print=debug_print)
@@ -117,7 +117,8 @@ def getParsedTables(fname, forceReprocess=False, debug_print=False):
                 d_tot.OB_bist_01 = d_tot.OB_bist_01.fillna('111111111111').astype(object)
                 d_tot.pass_OB_bist = d_tot.pass_OB_bist.astype(bool).fillna(True)
 
-        df['file'] = fname
+        if not df is None:
+            df['file'] = fname
         d_tot['file'] = fname
         d_tot.sort_index(inplace=True)
     return d_tot, df, d_bist
