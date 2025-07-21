@@ -22,6 +22,9 @@ def getBISTresults(fname, verbose=False):
         if _t['nodeid']=='test_bist_threshold.py::test_bist_full':
             found_BIST_data = True
             break
+        if '::test_bist_full' in _t['nodeid']:
+            found_BIST_data = True
+            break
         if _t['nodeid']=='test_TID_configurable.py::test_bist':
             found_BIST_data = True
             break
@@ -82,7 +85,7 @@ def getBISTresults(fname, verbose=False):
     return d_bist
 
 
-def getParsedTables(fname, forceReprocess=False, debug_print=False):
+def getParsedTables(fname, forceReprocess=False, debug_print=False, drop_last_lc_readout=False):
     fname_totals = fname.replace('.json','_totals.csv').replace('merged_jsons','parsed')
     fname_packets = fname.replace('.json','_packets.csv').replace('merged_jsons','parsed')
     fname_bist = fname.replace('.json','_bist.csv').replace('merged_jsons','parsed')
@@ -96,7 +99,7 @@ def getParsedTables(fname, forceReprocess=False, debug_print=False):
         d_bist = pd.read_csv(fname_bist,index_col='voltages')
     else:
         # print(fname)
-        d_tot, df = checkErr(fname, debug_print=debug_print)
+        d_tot, df, df_setting = checkErr(fname, debug_print=debug_print, drop_last_lc_readout=drop_last_lc_readout)
 
         d_bist = getBISTresults(fname, debug_print)
         if not d_bist is None:
@@ -121,10 +124,10 @@ def getParsedTables(fname, forceReprocess=False, debug_print=False):
             df['file'] = fname
         d_tot['file'] = fname
         d_tot.sort_index(inplace=True)
-    return d_tot, df, d_bist
+    return d_tot, df, d_bist, df_setting
 
 
-def checkErr(fname,i=0, debug_print=False):
+def checkErr(fname,i=0, drop_last_lc_readout = False, debug_print=False):
     df_packets, df_tot, df_settings=parse_sram_errors_per_packet(fname,sram_data, debug_print=debug_print)
     sum_cols = ['isOBErrors',
                 'isSingleError',
@@ -141,9 +144,14 @@ def checkErr(fname,i=0, debug_print=False):
                 'isOBErrors_SpecialPackets',
                ]
 
+
     ###fix that allows dropping the last lc buffer readout from the sums, if there are more than 1
     # y=df_tot.set_index('voltages')[['n_captured_bx','n_captures','n_packets','word_count','error_count','timestamp','current','temperature']]
-    y=df_tot[['voltages','n_captures','n_packets','n_captured_bx']].groupby('voltages').apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
+    if drop_last_lc_readout:
+        y=df_tot[['voltages','n_captures','n_packets','n_captured_bx']].groupby('voltages').apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
+    else:
+        y=df_tot[['voltages','n_captures','n_packets','n_captured_bx']].groupby('voltages').sum()
+
     y[['word_count','error_count','timestamp','current','temperature']]=df_tot.groupby('voltages')[['word_count','error_count','timestamp','current','temperature']].first()
 
     if not df_packets is None:
@@ -170,9 +178,13 @@ def checkErr(fname,i=0, debug_print=False):
         df_packets['isOtherError'] = ~(df_packets.isOBErrors | df_packets.isSingleError | df_packets.isBadOBError | df_packets.likelyInputCRCError | df_packets.likelyPPError)
 
 
-        ###fix that allows dropping the last lc buffer readout from the sums, if there are more than 1
-        # x=df_packets.groupby('voltages').sum()[sum_cols]
-        x=df_packets.groupby(['voltages','lc_number']).sum()[sum_cols].groupby(['voltages']).apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
+        if drop_last_lc_readout:
+            ###fix that allows dropping the last lc buffer readout from the sums, if there are more than 1
+            # x=df_packets.groupby('voltages').sum()[sum_cols]
+            x=df_packets.groupby(['voltages','lc_number']).sum()[sum_cols].groupby(['voltages']).apply(lambda x: x.iloc[:-1] if len(x)>1 else x, include_groups=False).groupby('voltages').sum()
+        else:
+            x=df_packets.groupby(['voltages']).sum()[sum_cols]
+
         z=y.merge(x,left_index=True,right_index=True,how='left').fillna(0)
     else:
         z = y
@@ -181,7 +193,7 @@ def checkErr(fname,i=0, debug_print=False):
     z['error_rate'] = (z.isOBErrors + z.isSingleError)/(z.n_captured_bx/3564*67)
     z['run'] = i
     z = z.astype({c: int for c in sum_cols})
-    return z, df_packets
+    return z, df_packets, df_settings
 
 ### function which merges split-out daq capture data (from January TID runs) back into a single json file
 def merge_jsons(fname, old_dir_name='json_files', new_dir_name='merged_jsons'):
