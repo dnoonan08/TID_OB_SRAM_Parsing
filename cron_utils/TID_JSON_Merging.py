@@ -43,7 +43,7 @@ unmergedEOSdir = '/eos/user/d/dnoonan/July_2025_TID_Data/data/'
 #location that new merged files should be put
 mergedEOSdir = '/eos/user/d/dnoonan/July_2025_TID_Data/merged_jsons/'
 
-chip='COB-15Pct-4-4'
+chip='COB-10Pct-1-1'
 
 a = glob.glob(f'{unmergedEOSdir}/report_TID_chip_{chip}_ECOND_2025-*.json')
 b = glob.glob(f'{unmergedEOSdir}/report_TID_chip_{chip}_ECOND_2025-*_streamcompare_*.json')

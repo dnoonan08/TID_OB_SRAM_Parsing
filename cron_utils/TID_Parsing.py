@@ -11,11 +11,14 @@ print(f'Try parsing files {datetime.datetime.now()}')
 
 forceReprocess = False
 
+_COB_='COB-10Pct-1-1'
+
 #flist = glob.glob('/eos/user/d/dnoonan/July_2025_TID_Data/merged_jsons/report_TID_chip_COB-5Pct-1-3_ECOND_2025-07-22*.json')
 flist = open('/afs/cern.ch/user/d/dnoonan/TID_OB_SRAM_Parsing/cron_utils/last_merged_files.txt','r').read().splitlines()
 
 flist.sort()
 
+newFilesParsed = False
 for fname in flist[:]:
     print(f'Parsing {fname}')
     fname_totals = fname.replace('.json','_totals.csv').replace('merged_jsons','parsed_data')
@@ -49,3 +52,10 @@ for fname in flist[:]:
         d_packets.to_csv(fname_packets)
         d_bist.to_csv(fname_bist)
         d_setting.to_csv(fname_settings)
+        newFilesParsed = True
+
+
+if newFilesParsed:
+    print('TRYING TO MAKE PLOTS')
+    from makePlots import makeSummaryPlots
+    makeSummaryPlots(_COB_)
