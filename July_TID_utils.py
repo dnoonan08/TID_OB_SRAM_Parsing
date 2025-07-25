@@ -19,6 +19,82 @@ _startTime_COB_5Pct_1_3 = np.array('2025-07-19 12')
 _startTime_COB_10Pct_1_2 = np.array('2025-07-22 12')
 _startTime_COB_15Pct_4_4 = np.array('2025-07-23 12')
 
+_xray_times = {
+    'COB-5Pct-1-1':{
+        'Starttime':np.datetime64('2025-07-17 12:00'),
+        'Cooldown' :np.datetime64('2025-07-17 17:50'),
+        'Xray 10'  :np.datetime64('2025-07-18 10:27'),
+        'Xray 50'  :np.datetime64('2025-07-18 18:29'),
+        'Xray Off' :np.datetime64('2025-07-19 11:37'),
+        },
+    'COB-5Pct-1-3':{
+        'Starttime':np.datetime64('2025-07-19 12:00'),
+        'Cooldown' :np.datetime64('2025-07-19 14:43'),
+        'Xray 10'  :np.datetime64('2025-07-19 16:41'),
+        'Xray 50'  :np.datetime64('2025-07-19 22:20'),
+        'Xray Off' :np.datetime64('2025-07-22 10:00'),
+        },
+    'COB-10Pct-1-2':{
+        'Starttime':np.datetime64('2025-07-22 12:00'),
+        'Cooldown' :np.datetime64('2025-07-22 14:00'),
+        'Xray 10'  :np.datetime64('2025-07-22 16:23'),
+        'Xray 50'  :np.datetime64('2025-07-22 21:40'),
+        'Xray Off' :np.datetime64('2025-07-23 10:30'),
+        },
+    'COB-15Pct-4-4':{
+        'Starttime':np.datetime64('2025-07-23 12:00'),
+        'Cooldown' :np.datetime64('2025-07-23 14:00'),
+        'Xray 10'  :np.datetime64('2025-07-23 15:43'),
+        'Xray 50'  :np.datetime64('2025-07-24 04:38'),
+        'Xray Off' :np.datetime64('2025-07-25 09:58'),
+        },
+    'COB-10Pct-1-1':{
+        'Starttime':np.datetime64('2025-07-25 12:00'),
+        'Cooldown' :np.datetime64('2025-07-25 13:00'),
+        'Xray 10'  :np.datetime64('2025-07-25 16:00'),
+        'Xray 50'  :np.datetime64('2025-07-25 21:00'),
+        'Xray Off' :np.datetime64('2025-07-28 11:00'),
+        },
+    }
+
+def mark_TID_times(ax,_COB_,leg_loc=None):
+    _xlim = ax.get_xlim()
+    _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
+    _ylim = ax.get_ylim()
+    _t = _xray_times[_COB_]['Cooldown'].astype(object)
+    _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray 10'].astype(object)
+    _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray 50'].astype(object)
+    _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray Off'].astype(object)
+    _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
+        ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
+    if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
+         ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
+    if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
+         ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
+    if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
+        ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
+
+    if leg_loc==False:
+        return
+    if leg_loc is None:
+        ax.legend()
+    elif 'right' in leg_loc:
+        offset = .05
+        if '+' in leg_loc:
+            _extra = leg_loc.split('+')[-1]
+            if _extra=='':
+                offset=0.10
+            else:
+                try:
+                    offset = int(_extra)/100.
+                except:
+                    offset = .10
+        ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
+
 def mark_TID_times_COB_5Pct_1_1(ax,leg_loc=None):
     _xlim = ax.get_xlim()
     _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
@@ -57,10 +133,15 @@ def mark_TID_times_COB_5Pct_1_3(ax,leg_loc=None):
     _xlim = ax.get_xlim()
     _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
     _ylim = ax.get_ylim()
-    _chiller_on = datetime.datetime(2025, 7, 19, 14, 43, tzinfo=datetime.timezone.utc)
-    _xray_10    = datetime.datetime(2025, 7, 19, 16, 41, tzinfo=datetime.timezone.utc)
-    _xray_50    = datetime.datetime(2025, 7, 19, 22, 20, tzinfo=datetime.timezone.utc)
-    _xray_Off   = datetime.datetime(2025, 7, 22, 10, 45, tzinfo=datetime.timezone.utc)
+    _COB_ = 'COB-5Pct-1-3'
+    _t = _xray_times[_COB_]['Cooldown'].astype(object)
+    _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray 10'].astype(object)
+    _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray 50'].astype(object)
+    _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray Off'].astype(object)
+    _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
     if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
         ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
     if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
@@ -126,10 +207,15 @@ def mark_TID_times_COB_15Pct_4_4(ax,leg_loc=None):
     _xlim = ax.get_xlim()
     _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
     _ylim = ax.get_ylim()
-    _chiller_on = datetime.datetime(2025, 7, 23, 13, 49, tzinfo=datetime.timezone.utc)
-    _xray_10    = datetime.datetime(2025, 7, 23, 15, 44, tzinfo=datetime.timezone.utc)
-    _xray_50    = datetime.datetime(2025, 7, 23, 21, 40, tzinfo=datetime.timezone.utc)
-    _xray_Off   = datetime.datetime(2025, 7, 24, 10, 13, tzinfo=datetime.timezone.utc)
+    _COB_ = 'COB-15Pct-4-4'
+    _t = _xray_times[_COB_]['Cooldown'].astype(object)
+    _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray 10'].astype(object)
+    _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray 50'].astype(object)
+    _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    _t = _xray_times[_COB_]['Xray Off'].astype(object)
+    _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
     if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
         ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
     if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
