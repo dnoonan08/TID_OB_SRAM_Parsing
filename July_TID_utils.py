@@ -32,14 +32,14 @@ _xray_times = {
         'Cooldown' :np.datetime64('2025-07-19 14:43'),
         'Xray 10'  :np.datetime64('2025-07-19 16:41'),
         'Xray 50'  :np.datetime64('2025-07-19 22:20'),
-        'Xray Off' :np.datetime64('2025-07-22 10:00'),
+        'Xray Off' :np.datetime64('2025-07-22 10:45'),
         },
     'COB-10Pct-1-2':{
         'Starttime':np.datetime64('2025-07-22 12:00'),
         'Cooldown' :np.datetime64('2025-07-22 14:00'),
         'Xray 10'  :np.datetime64('2025-07-22 16:23'),
         'Xray 50'  :np.datetime64('2025-07-22 21:40'),
-        'Xray Off' :np.datetime64('2025-07-23 10:30'),
+        'Xray Off' :np.datetime64('2025-07-23 10:13'),
         },
     'COB-15Pct-4-4':{
         'Starttime':np.datetime64('2025-07-23 12:00'),
@@ -50,9 +50,9 @@ _xray_times = {
         },
     'COB-10Pct-1-1':{
         'Starttime':np.datetime64('2025-07-25 12:00'),
-        'Cooldown' :np.datetime64('2025-07-25 13:00'),
-        'Xray 10'  :np.datetime64('2025-07-25 16:00'),
-        'Xray 50'  :np.datetime64('2025-07-25 21:00'),
+        'Cooldown' :np.datetime64('2025-07-25 13:54'),
+        'Xray 10'  :np.datetime64('2025-07-25 16:12'),
+        'Xray 50'  :np.datetime64('2025-07-25 21:30'),
         'Xray Off' :np.datetime64('2025-07-28 11:00'),
         },
     }
