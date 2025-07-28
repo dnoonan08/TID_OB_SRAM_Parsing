@@ -35,6 +35,8 @@ def getBISTresults(fname, verbose=False):
         print('No BIST data found')
         return None
 
+    if not 'metadata' in _t:
+        return None
     t = _t['metadata']
 
     voltages = np.array(t['voltages'])
@@ -81,6 +83,16 @@ def getBISTresults(fname, verbose=False):
     d_bist['pass_OB_bist'] = (d_bist[[f'OBbist_{i}' for i in [1,2,3,4]]]==4095).all(axis=1)
     d_bist['PP_bist_01'] = d_bist[f'PPbist_1'].apply(lambda x: f'{x:012b}')
     d_bist['OB_bist_01'] = d_bist[f'OBbist_1'].apply(lambda x: f'{x:012b}')
+
+    try:
+        measured_voltages = t['measured_voltages']
+        measured_currents = t['measured_currents']
+    except:
+        measured_voltages = np.zeros_like(voltages)
+        measured_currents = np.zeros_like(voltages)
+
+    d_bist['meas_voltage'] = measured_voltages
+    d_bist['meas_current'] = measured_currents
 
     return d_bist
 
