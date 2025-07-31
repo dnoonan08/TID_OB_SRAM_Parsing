@@ -43,8 +43,8 @@ _xray_times = {
         },
     'COB-15Pct-4-4':{
         'Starttime':np.datetime64('2025-07-23 12:00'),
-        'Cooldown' :np.datetime64('2025-07-23 14:00'),
-        'Xray 10'  :np.datetime64('2025-07-23 15:43'),
+        'Cooldown' :np.datetime64('2025-07-23 13:49'),
+        'Xray 10'  :np.datetime64('2025-07-23 15:44'),
         'Xray 50'  :np.datetime64('2025-07-24 04:38'),
         'Xray Off' :np.datetime64('2025-07-25 09:58'),
         },
@@ -53,7 +53,35 @@ _xray_times = {
         'Cooldown' :np.datetime64('2025-07-25 13:54'),
         'Xray 10'  :np.datetime64('2025-07-25 16:12'),
         'Xray 50'  :np.datetime64('2025-07-25 21:30'),
-        'Xray Off' :np.datetime64('2025-07-28 11:00'),
+        'Xray Off' :np.datetime64('2025-07-26 11:28'),
+        },
+    'COB-10Pct-1-3':{
+        'Starttime':np.datetime64('2025-07-26 12:00'),
+        'Cooldown' :np.datetime64('2025-07-26 13:07'),
+        'Xray 10'  :np.datetime64('2025-07-26 15:34'),
+        'Xray 50'  :np.datetime64('2025-07-26 21:00'),
+        'Xray Off' :np.datetime64('2025-07-28 11:14'),
+        },
+    'COB-5Pct-4-5':{
+        'Starttime':np.datetime64('2025-07-28 12:00'),
+        'Cooldown' :np.datetime64('2025-07-28 14:07'),
+        'Xray 10'  :np.datetime64('2025-07-28 16:03'),
+        'Xray 50'  :np.datetime64('2025-07-28 21:30'),
+        'Xray Off' :np.datetime64('2025-07-29 10:02'),
+        },
+    'COB-Std-6-4':{
+        'Starttime':np.datetime64('2025-07-29 14:00'),
+        'Cooldown' :np.datetime64('2025-07-29 15:38'),
+        'Xray 10'  :np.datetime64('2025-07-29 18:24'),
+        'Xray 50'  :np.datetime64('2025-07-30 08:54'),
+        'Xray Off' :np.datetime64('2025-07-30 13:56'),
+        },
+    'COB-15Pct-4-3':{
+        'Starttime':np.datetime64('2025-07-30 14:00'),
+        'Cooldown' :np.datetime64('2025-07-30 15:38'),
+        'Xray 10'  :np.datetime64('2025-07-30 17:26'),
+        'Xray 50'  :np.datetime64('2025-07-30 22:30'),
+        'Xray Off' :np.datetime64('2025-07-31 10:30'),
         },
     }
 
@@ -249,6 +277,7 @@ def plot_error_rate(d_tot,
                     title='Error Rate',
                     ylabel='Error Rate',
                     xlabel='Time',
+                    _COB_=None,
                     axis=None,
                     logy=False,
                     bist=False,
@@ -296,8 +325,8 @@ def plot_error_rate(d_tot,
     if logy:
         ax.set_yscale('log')
     if not mark_TID_times is None:
-        mark_TID_times(ax,leg_offset)
-    if ax is None:
+        mark_TID_times(ax,_COB_,leg_offset)
+    if axis is None:
         return fig,ax
     else:
         return ax
