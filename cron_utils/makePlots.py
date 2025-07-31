@@ -3,6 +3,7 @@ import sys
 sys.path.append('..')
 
 from July_TID_utils import loadData, mark_TID_times, _xray_times
+import numpy as np
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -13,19 +14,39 @@ from cycler import cycler
 color_cycle =  ['#3f90da','#ffa90e','#bd1f01','#94a4a2','#832db6','#a96b59','#e76300','#b9ac70','#717581','#92dadd']
 hep.style.use(["CMS", {"axes.prop_cycle": cycler("color", color_cycle)} ])
 
-def voltage_summary(d_summary, mark_TID_times, _COB_, xlim=(None,None), ylim=(None,None)):
+_d50 = 8
+_d10 = 8/5.
+def voltage_summary(d_summary, mark_TID_times, _COB_, plotTID=False, xlim=(None,None), ylim=(None,None)):
     fig,ax = plt.subplots(1,1)
 
-    ax.plot(d_summary.timestamps,d_summary.etx_error_free,label='ETX Error Free')
-    ax.plot(d_summary.timestamps,d_summary.etx_error_1e8,label='ETX Error < 1e-8')
-    ax.plot(d_summary.timestamps,d_summary.etx_error_1e6,label='ETX Error < 1e-6')
-    ax.plot(d_summary.timestamps,d_summary.etx_error_1e4,label='ETX Error < 1e-4')
-    ax.plot(d_summary.timestamps,d_summary.pp_passing_v,label='PP BIST')
-    ax.plot(d_summary.timestamps,d_summary.ob_passing_v,label='OB BIST')
-    ax.plot(d_summary.timestamps,d_summary.i2c_drop_v,label='I2C dropout')
+    if plotTID:
+        _xray_Off= _xray_times[_COB_]['Xray Off']
+        _xray_50 = _xray_times[_COB_]['Xray 50']
+        _xray_10 = _xray_times[_COB_]['Xray 10']
+        _tot_10 = (_xray_50 - _xray_10).astype('timedelta64[m]').astype('float')/60.*_d10
+        _tot_50 = (_xray_Off-_xray_50).astype('timedelta64[m]').astype('float')/60.*_d50
+        d = d_summary[(d_summary.timestamps>(_xray_10-np.timedelta64(10,'m'))) & (d_summary.timestamps<_xray_Off)]
+    else:
+        d = d_summary
 
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-    ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(6))
+    x = d.timestamps.values
+    if plotTID:
+        x = np.where(x>_xray_50, _tot_10 + (x - _xray_50).astype('timedelta64[m]').astype(float)/60.*_d50,
+                     (x - _xray_10).astype('timedelta64[m]').astype(float)/60.*_d10
+                    )
+    ax.plot(x,d.etx_error_free,label='ETX Error Free')
+    ax.plot(x,d.etx_error_1e8,label='ETX Error < 1e-8')
+    ax.plot(x,d.etx_error_1e6,label='ETX Error < 1e-6')
+    ax.plot(x,d.etx_error_1e4,label='ETX Error < 1e-4')
+    ax.plot(x,d.pp_passing_v,label='PP BIST')
+    ax.plot(x,d.ob_passing_v,label='OB BIST')
+    ax.plot(x,d.i2c_drop_v,label='I2C dropout')
+
+    if plotTID:
+        ax.set_xlabel('TID (MRad)')
+    else:
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+        ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(6))
     ax.set_ylabel('Voltage')
     ax.set_xlim(xlim[0],xlim[1])
     ax.set_ylim(ylim[0],ylim[1])
@@ -84,15 +105,27 @@ def currentPlot(d_tot,
     return fig
 
 _COB_ = 'COB-15Pct-4-4'
+import os
 
 def makeSummaryPlots(_COB_):
     _startTime = _xray_times[_COB_]['Starttime']
     d_tot,d_packets,d_bist,d_settings,d_summary = loadData(_COB_)
+
+    if not os.path.exists(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}'):
+        os.mkdir(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}')
+
     f = voltage_summary(d_summary, mark_TID_times, _COB_);
     f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/VoltageSummary_{_COB_}.pdf', bbox_inches='tight')
+    f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/VoltageSummary_{_COB_}.png', bbox_inches='tight')
+
+    f = voltage_summary(d_summary, mark_TID_times, _COB_, plotTID=True);
+    f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/VoltageSummary_TID_{_COB_}.pdf', bbox_inches='tight')
+    f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/VoltageSummary_TID_{_COB_}.png', bbox_inches='tight')
 
     f = temperaturePlot(d_tot, mark_TID_times, _COB_,xlim=(_startTime, None),bad_temps=[])
     f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/Temperature_{_COB_}.pdf', bbox_inches='tight')
+    f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/Temperature_{_COB_}.png', bbox_inches='tight')
 
     f = currentPlot(d_tot, mark_TID_times, _COB_,xlim=(_startTime, None))
     f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/Current_{_COB_}.pdf', bbox_inches='tight')
+    f.savefig(f'/eos/user/d/dnoonan/July_2025_TID_Data/plots/{_COB_}/Current_{_COB_}.png', bbox_inches='tight')
