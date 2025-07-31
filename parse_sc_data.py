@@ -166,7 +166,7 @@ def checkErr(fname,i=0, drop_last_lc_readout = False, debug_print=False):
     else:
         y=df_tot[['voltages','n_captures','n_packets','n_captured_bx']].groupby('voltages').sum()
 
-    y[['word_count','error_count','timestamp','current','temperature']]=df_tot.groupby('voltages')[['word_count','error_count','timestamp','current','temperature']].first()
+    y[['word_count','error_count','timestamp','voltage_measured','current','temperature']]=df_tot.groupby('voltages')[['word_count','error_count','timestamp','voltage_measured','current','temperature']].first()
 
     if not df_packets is None:
         df_packets['isSpecialPacket'] = df_packets.packet_number.isin([3,4,11,27,32,33,49])
@@ -292,7 +292,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
     total_captures, total_packets, total_fifo_occupancy = [], [], []
     total_timestamp = []
     total_word_count, total_error_count = [],[]
-    total_mean_temperature, total_std_temperature, total_mean_current, total_std_current = [],[],[],[]
+    total_mean_temperature, total_std_temperature, total_mean_voltage, total_std_voltage, total_mean_current, total_std_current = [],[],[],[],[],[]
     total_capture_length_bx = []
     total_voltages, total_file_names, total_test_number, total_test_name, total_lc_number = [],[],[],[],[]
     total_n_erx, total_n_etx = [],[]
@@ -387,17 +387,22 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 err_cnt = err_cnt_67[-1]
 
         temperature = np.array(t['Temperature'])
+        measured_voltage = np.array(t['Voltage'])
         current = np.array(t['Current'])
         hasL1A    = np.array(t['HasL1A'])
 
         #find cases where first current is an outlier/stale data
         #if mean is pulled by first entry, remove first entry
         c = current[hasL1A==nl1a]
-        residual = (c-c.mean())/c.std()
-        #if residual of first reading is one sign, and all other residuals are opposite sign, first reading is pulling measurement and should be skipped
-        if ((residual[0]<0) & (residual[1:]>0).all()) or ((residual[0]>0) & (residual[1:]<0).all()):
-            c = current[hasL1A==nl1a][1:]
+        v = measured_voltage[hasL1A==nl1a]
+        if c.std()>0:
+            residual = (c-c.mean())/c.std()
+            #if residual of first reading is one sign, and all other residuals are opposite sign, first reading is pulling measurement and should be skipped
+            if ((residual[0]<0) & (residual[1:]>0).all()) or ((residual[0]>0) & (residual[1:]<0).all()):
+                c = current[hasL1A==nl1a][1:]
+                v = measured_voltage[hasL1A==nl1a][1:]
         mean_current, std_current = c.mean(), c.std()
+        mean_voltage, std_voltage = v.mean(), v.std()
         mean_temperature, std_temperature = temperature[hasL1A==nl1a].mean(), temperature[hasL1A==nl1a].std()
 
         for c in capt_idx67:
@@ -415,7 +420,11 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 total_packets.append(0)
                 total_timestamp.append(daq_timestamp)
                 total_mean_current.append(mean_current)
+                total_mean_voltage.append(mean_voltage)
                 total_mean_temperature.append(mean_temperature)
+                total_std_current.append(std_current)
+                total_std_voltage.append(std_voltage)
+                total_std_temperature.append(std_temperature)
                 total_capture_length_bx.append(n_sc_bx)
                 total_word_count.append(n_sc_bx)
                 total_error_count.append(err_cnt)
@@ -469,7 +478,11 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                     total_packets.append(-1)
                     total_timestamp.append(daq_timestamp)
                     total_mean_current.append(mean_current)
+                    total_mean_voltage.append(mean_voltage)
                     total_mean_temperature.append(mean_temperature)
+                    total_std_current.append(std_current)
+                    total_std_voltage.append(std_voltage)
+                    total_std_temperature.append(std_temperature)
                     total_capture_length_bx.append(n_sc_bx)
                     total_word_count.append(n_sc_bx)
                     total_error_count.append(err_cnt)
@@ -495,7 +508,11 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 total_packets.append(-1)
                 total_timestamp.append(daq_timestamp)
                 total_mean_current.append(mean_current)
+                total_mean_voltage.append(mean_voltage)
                 total_mean_temperature.append(mean_temperature)
+                total_std_current.append(std_current)
+                total_std_voltage.append(std_voltage)
+                total_std_temperature.append(std_temperature)
                 total_capture_length_bx.append(n_sc_bx)
                 total_word_count.append(n_sc_bx)
                 total_error_count.append(err_cnt)
@@ -593,7 +610,11 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             total_packets.append(len(packets_asic))
             total_timestamp.append(daq_timestamp)
             total_mean_current.append(mean_current)
+            total_mean_voltage.append(mean_voltage)
             total_mean_temperature.append(mean_temperature)
+            total_std_current.append(std_current)
+            total_std_voltage.append(std_voltage)
+            total_std_temperature.append(std_temperature)
             if len(daq_asic)>=4095:
                 total_capture_length_bx.append(daq_counter[-1] - daq_counter[0] + 1)
             else:
@@ -675,6 +696,10 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             'timestamp':total_timestamp,
             'temperature':total_mean_temperature,
             'current':total_mean_current,
+            'voltage_measured':total_mean_voltage,
+            'temperature_std':total_std_temperature,
+            'current_std':total_std_current,
+            'voltage_std':total_std_voltage,
             'n_erx':total_n_erx,
             'n_etx':total_n_etx,
         })
