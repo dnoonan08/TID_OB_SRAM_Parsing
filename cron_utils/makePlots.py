@@ -23,7 +23,14 @@ def voltage_summary(d_summary, mark_TID_times, _COB_, plotTID=False, xlim=(None,
         _xray_Off= _xray_times[_COB_]['Xray Off']
         _xray_50 = _xray_times[_COB_]['Xray 50']
         _xray_10 = _xray_times[_COB_]['Xray 10']
-        _tot_10 = (_xray_50 - _xray_10).astype('timedelta64[m]').astype('float')/60.*_d10
+        if 'Xray 10 Pause' in _xray_times[_COB_]:
+            _xray_10_pause = _xray_times[_COB_]['Xray 10 Pause']
+            _xray_10_restart = _xray_times[_COB_]['Xray 10 Restart']
+        else:
+            _xray_10_pause = _xray_times[_COB_]['Xray Off']
+            _xray_10_restart = _xray_times[_COB_]['Xray Off']
+        _xray_10_delta = (_xray_times[_COB_]['Xray 10 Pause']-_xray_times[_COB_]['Xray 10 Restart']).astype('timedelta64[s]')
+        _tot_10 = (_xray_50 - _xray_10 + _xray_10_delta).astype('timedelta64[m]').astype('float')/60.*_d10
         _tot_50 = (_xray_Off-_xray_50).astype('timedelta64[m]').astype('float')/60.*_d50
         d = d_summary[(d_summary.timestamps>(_xray_10-np.timedelta64(10,'m'))) & (d_summary.timestamps<_xray_Off)]
     else:
@@ -31,8 +38,15 @@ def voltage_summary(d_summary, mark_TID_times, _COB_, plotTID=False, xlim=(None,
 
     x = d.timestamps.values
     if plotTID:
-        x = np.where(x>_xray_50, _tot_10 + (x - _xray_50).astype('timedelta64[m]').astype(float)/60.*_d50,
-                     (x - _xray_10).astype('timedelta64[m]').astype(float)/60.*_d10
+        #where statements to calculate dose in different regions
+        x = np.where(x>_xray_Off, _tot_50 + _tot_10,#after x-rays turned off, just total 50 + total 10
+                     np.where(x>_xray_50, _tot_10 + (x - _xray_50).astype('timedelta64[m]').astype(float)/60.*_d50, #after increase to 50 mA, total 10 plus accumulated amount
+                              np.where(x>_xray_10_restart, (x - _xray_10 + _xray_10_delta).astype('timedelta64[m]').astype(float)/60.*_d10,#after x-rays restarted, accumulated amount, with the time delta of the pause.  If x-rays were never paused this time is set to XRAY OFF, so this will never be true
+                                       np.where(x>_xray_10_pause, (_xray_10_pause - _xray_10).astype('timedelta64[m]').astype(float)/60.*_d10, # during the pause, we have a constant dose
+                                                (x - _xray_10).astype('timedelta64[m]').astype(float)/60.*_d10 #before the pause, accumulated dose, can go negative before x-rays turned on, which is useful in some of the plots
+                                               )
+                                      )
+                             )
                     )
     ax.plot(x,d.etx_error_free,label='ETX Error Free')
     ax.plot(x,d.etx_error_1e8,label='ETX Error < 1e-8')
