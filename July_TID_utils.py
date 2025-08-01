@@ -80,8 +80,10 @@ _xray_times = {
         'Starttime':np.datetime64('2025-07-30 14:00'),
         'Cooldown' :np.datetime64('2025-07-30 15:38'),
         'Xray 10'  :np.datetime64('2025-07-30 17:26'),
-        'Xray 50'  :np.datetime64('2025-07-30 22:30'),
-        'Xray Off' :np.datetime64('2025-07-31 10:30'),
+        'Xray 10 Pause'  :np.datetime64('2025-07-30 18:57'),
+        'Xray 10 Restart':np.datetime64('2025-07-31 09:21'),
+        'Xray 50'  :np.datetime64('2025-07-31 13:52'),
+        'Xray Off' :np.datetime64('2025-08-01 06:45'),
         },
     }
 
