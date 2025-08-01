@@ -101,12 +101,15 @@ def getParsedTables(fname, forceReprocess=False, debug_print=False, drop_last_lc
     fname_totals = fname.replace('.json','_totals.csv').replace('merged_jsons','parsed')
     fname_packets = fname.replace('.json','_packets.csv').replace('merged_jsons','parsed')
     fname_bist = fname.replace('.json','_bist.csv').replace('merged_jsons','parsed')
+    fname_setting = fname.replace('.json','_settings.csv').replace('merged_jsons','parsed')
     already_parsed = (os.path.exists(fname_totals) &
-                      os.path.exists(fname_packets)
+                      os.path.exists(fname_packets) & 
+                      os.path.exists(fname_setting)
                      ) & ~forceReprocess
     if already_parsed:
         d_tot = pd.read_csv(fname_totals,index_col='voltages')
         df = pd.read_csv(fname_packets,index_col=0)
+        df_setting = pd.read_csv(fname_setting,index_col=0)
         if os.path.exists(fname_bist):
             d_bist = pd.read_csv(fname_bist,index_col='voltages')
         else:
