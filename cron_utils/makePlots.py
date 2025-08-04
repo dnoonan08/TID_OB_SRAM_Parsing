@@ -29,7 +29,7 @@ def voltage_summary(d_summary, mark_TID_times, _COB_, plotTID=False, xlim=(None,
         else:
             _xray_10_pause = _xray_times[_COB_]['Xray Off']
             _xray_10_restart = _xray_times[_COB_]['Xray Off']
-        _xray_10_delta = (_xray_times[_COB_]['Xray 10 Pause']-_xray_times[_COB_]['Xray 10 Restart']).astype('timedelta64[s]')
+        _xray_10_delta = (_xray_10_pause - _xray_10_restart).astype('timedelta64[s]')
         _tot_10 = (_xray_50 - _xray_10 + _xray_10_delta).astype('timedelta64[m]').astype('float')/60.*_d10
         _tot_50 = (_xray_Off-_xray_50).astype('timedelta64[m]').astype('float')/60.*_d50
         d = d_summary[(d_summary.timestamps>(_xray_10-np.timedelta64(10,'m'))) & (d_summary.timestamps<_xray_Off)]
