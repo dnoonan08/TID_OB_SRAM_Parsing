@@ -85,6 +85,41 @@ _xray_times = {
         'Xray 50'  :np.datetime64('2025-07-31 13:52'),
         'Xray Off' :np.datetime64('2025-08-01 06:45'),
         },
+    'COB-5Pct-4-2':{
+        'Starttime':np.datetime64('2025-08-03 12:00'),
+        'Cooldown' :np.datetime64('2025-08-03 13:54'),
+        'Xray 10'  :np.datetime64('2025-08-03 16:06'),
+        'Xray 50'  :np.datetime64('2025-08-03 21:30'),
+        'Xray Off' :np.datetime64('2025-08-04 10:00'),
+        },
+    'COB-5Pct-1-5':{
+        'Starttime':np.datetime64('2025-08-04 12:00'),
+        'Cooldown' :np.datetime64('2025-08-04 13:54'),
+        'Xray 10'  :np.datetime64('2025-08-04 16:06'),
+        'Xray 50'  :np.datetime64('2025-08-04 21:30'),
+        'Xray Off' :np.datetime64('2025-08-05 10:00'),
+        },
+    'COB-10Pct-1-4':{
+        'Starttime':np.datetime64('2025-08-05 12:00'),
+        'Cooldown' :np.datetime64('2025-08-05 13:54'),
+        'Xray 10'  :np.datetime64('2025-08-05 16:06'),
+        'Xray 50'  :np.datetime64('2025-08-05 21:30'),
+        'Xray Off' :np.datetime64('2025-08-06 10:00'),
+        },
+    'COB-5Pct-4-1':{
+        'Starttime':np.datetime64('2025-08-06 12:00'),
+        'Cooldown' :np.datetime64('2025-08-06 13:54'),
+        'Xray 10'  :np.datetime64('2025-08-06 16:06'),
+        'Xray 50'  :np.datetime64('2025-08-06 21:30'),
+        'Xray Off' :np.datetime64('2025-08-08 10:00'),
+        },
+    'COB-15Pct-4-2':{
+        'Starttime':np.datetime64('2025-08-08 12:00'),
+        'Cooldown' :np.datetime64('2025-08-08 13:54'),
+        'Xray 10'  :np.datetime64('2025-08-08 16:06'),
+        'Xray 50'  :np.datetime64('2025-08-08 21:30'),
+        'Xray Off' :np.datetime64('2025-08-11 10:00'),
+        },
     }
 
 def mark_TID_times(ax,_COB_,leg_loc=None):
