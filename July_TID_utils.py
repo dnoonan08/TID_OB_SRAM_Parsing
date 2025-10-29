@@ -122,18 +122,59 @@ _xray_times = {
         },
     }
 
-def mark_TID_times(ax,_COB_,leg_loc=None):
+
+def getTID(timestamp,_COB_):
+    _d50 = 8
+    _d10 = 8/5.
+
+    _xray_Off= _xray_times[_COB_]['Xray Off']
+    _xray_50 = _xray_times[_COB_]['Xray 50']
+    _xray_10 = _xray_times[_COB_]['Xray 10']
+    if 'Xray 10 Pause' in _xray_times[_COB_]:
+        _xray_10_pause = _xray_times[_COB_]['Xray 10 Pause']
+        _xray_10_restart = _xray_times[_COB_]['Xray 10 Restart']
+    else:
+        _xray_10_pause = _xray_times[_COB_]['Xray Off']
+        _xray_10_restart = _xray_times[_COB_]['Xray Off']
+    _xray_10_delta = (_xray_10_pause - _xray_10_restart).astype('timedelta64[s]')
+    _tot_10 = (_xray_50 - _xray_10 + _xray_10_delta).astype('timedelta64[m]').astype('float')/60.*_d10
+    _tot_50 = (_xray_Off-_xray_50).astype('timedelta64[m]').astype('float')/60.*_d50
+    if type(timestamp)==datetime.datetime:
+        x = np.array(timestamp)
+    elif timestamp.dtype==np.dtype('O'):
+        x = pd.to_datetime(timestamp).values
+    else:
+        x = timestamp
+    x = np.where(x>_xray_Off, _tot_50 + _tot_10,#after x-rays turned off, just total 50 + total 10
+                 np.where(x>_xray_50, _tot_10 + (x - _xray_50).astype('timedelta64[m]').astype(float)/60.*_d50, #after increase to 50 mA, total 10 plus accumulated amount
+                          np.where(x>_xray_10_restart, (x - _xray_10 + _xray_10_delta).astype('timedelta64[m]').astype(float)/60.*_d10,#after x-rays restarted, accumulated amount, with the time delta of the pause.  If x-rays were never paused this time is set to XRAY OFF, so this will never be true
+                                   np.where(x>_xray_10_pause, (_xray_10_pause - _xray_10).astype('timedelta64[m]').astype(float)/60.*_d10, # during the pause, we have a constant dose
+                                            (x - _xray_10).astype('timedelta64[m]').astype(float)/60.*_d10 #before the pause, accumulated dose, can go negative before x-rays turned on, which is useful in some of the plots
+                                           )
+                                  )
+                         )
+                )
+    return x
+
+
+def mark_TID_times(ax,_COB_,leg_loc=None, vsTID=False):
     _xlim = ax.get_xlim()
-    _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
     _ylim = ax.get_ylim()
-    _t = _xray_times[_COB_]['Cooldown'].astype(object)
-    _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray 10'].astype(object)
-    _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray 50'].astype(object)
-    _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray Off'].astype(object)
-    _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+    if vsTID:
+        _chiller_on = getTID(_xray_times[_COB_]['Cooldown'],_COB_)
+        _xray_10 = getTID(_xray_times[_COB_]['Xray 10'],_COB_)
+        _xray_50 = getTID(_xray_times[_COB_]['Xray 50'],_COB_)
+        _xray_Off = getTID(_xray_times[_COB_]['Xray Off'],_COB_)
+    else:
+        _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
+        _t = _xray_times[_COB_]['Cooldown'].astype(object)
+        _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+        _t = _xray_times[_COB_]['Xray 10'].astype(object)
+        _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+        _t = _xray_times[_COB_]['Xray 50'].astype(object)
+        _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+        _t = _xray_times[_COB_]['Xray Off'].astype(object)
+        _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
     if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
         ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
     if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
@@ -160,152 +201,152 @@ def mark_TID_times(ax,_COB_,leg_loc=None):
                     offset = .10
         ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
 
-def mark_TID_times_COB_5Pct_1_1(ax,leg_loc=None):
-    _xlim = ax.get_xlim()
-    _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
-    _ylim = ax.get_ylim()
-    _chiller_on = datetime.datetime(2025, 7, 17, 17, 50, tzinfo=datetime.timezone.utc)
-    _xray_10    = datetime.datetime(2025, 7, 18, 10, 27, tzinfo=datetime.timezone.utc)
-    _xray_50    = datetime.datetime(2025, 7, 18, 16, 30, tzinfo=datetime.timezone.utc)
-    _xray_Off   = datetime.datetime(2025, 7, 19, 11, 37, tzinfo=datetime.timezone.utc)
-    if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
-        ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
-    if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
-         ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
-    if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
-         ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
-    if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
-        ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
+# def mark_TID_times_COB_5Pct_1_1(ax,leg_loc=None):
+#     _xlim = ax.get_xlim()
+#     _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
+#     _ylim = ax.get_ylim()
+#     _chiller_on = datetime.datetime(2025, 7, 17, 17, 50, tzinfo=datetime.timezone.utc)
+#     _xray_10    = datetime.datetime(2025, 7, 18, 10, 27, tzinfo=datetime.timezone.utc)
+#     _xray_50    = datetime.datetime(2025, 7, 18, 16, 30, tzinfo=datetime.timezone.utc)
+#     _xray_Off   = datetime.datetime(2025, 7, 19, 11, 37, tzinfo=datetime.timezone.utc)
+#     if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
+#         ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
+#     if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
+#          ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
+#     if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
+#          ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
+#     if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
+#         ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
 
-    if leg_loc==False:
-        return
-    if leg_loc is None:
-        ax.legend()
-    elif 'right' in leg_loc:
-        offset = .05
-        if '+' in leg_loc:
-            _extra = leg_loc.split('+')[-1]
-            if _extra=='':
-                offset=0.10
-            else:
-                try:
-                    offset = int(_extra)/100.
-                except:
-                    offset = .10
-        ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
+#     if leg_loc==False:
+#         return
+#     if leg_loc is None:
+#         ax.legend()
+#     elif 'right' in leg_loc:
+#         offset = .05
+#         if '+' in leg_loc:
+#             _extra = leg_loc.split('+')[-1]
+#             if _extra=='':
+#                 offset=0.10
+#             else:
+#                 try:
+#                     offset = int(_extra)/100.
+#                 except:
+#                     offset = .10
+#         ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
 
-def mark_TID_times_COB_5Pct_1_3(ax,leg_loc=None):
-    _xlim = ax.get_xlim()
-    _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
-    _ylim = ax.get_ylim()
-    _COB_ = 'COB-5Pct-1-3'
-    _t = _xray_times[_COB_]['Cooldown'].astype(object)
-    _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray 10'].astype(object)
-    _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray 50'].astype(object)
-    _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray Off'].astype(object)
-    _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
-        ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
-    if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
-         ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
-    if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
-         ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
-    if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
-        ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
+# def mark_TID_times_COB_5Pct_1_3(ax,leg_loc=None):
+#     _xlim = ax.get_xlim()
+#     _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
+#     _ylim = ax.get_ylim()
+#     _COB_ = 'COB-5Pct-1-3'
+#     _t = _xray_times[_COB_]['Cooldown'].astype(object)
+#     _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     _t = _xray_times[_COB_]['Xray 10'].astype(object)
+#     _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     _t = _xray_times[_COB_]['Xray 50'].astype(object)
+#     _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     _t = _xray_times[_COB_]['Xray Off'].astype(object)
+#     _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
+#         ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
+#     if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
+#          ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
+#     if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
+#          ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
+#     if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
+#         ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
 
-    if leg_loc==False:
-        return
-    if leg_loc is None:
-        ax.legend()
-    elif 'right' in leg_loc:
-        offset = .05
-        if '+' in leg_loc:
-            _extra = leg_loc.split('+')[-1]
-            if _extra=='':
-                offset=0.10
-            else:
-                try:
-                    offset = int(_extra)/100.
-                except:
-                    offset = .10
-        ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
+#     if leg_loc==False:
+#         return
+#     if leg_loc is None:
+#         ax.legend()
+#     elif 'right' in leg_loc:
+#         offset = .05
+#         if '+' in leg_loc:
+#             _extra = leg_loc.split('+')[-1]
+#             if _extra=='':
+#                 offset=0.10
+#             else:
+#                 try:
+#                     offset = int(_extra)/100.
+#                 except:
+#                     offset = .10
+#         ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
 
-def mark_TID_times_COB_10Pct_1_2(ax,leg_loc=None):
-    _xlim = ax.get_xlim()
-    _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
-    _ylim = ax.get_ylim()
-    _chiller_on = datetime.datetime(2025, 7, 22, 14,  0, tzinfo=datetime.timezone.utc)
-    _xray_10    = datetime.datetime(2025, 7, 22, 16, 23, tzinfo=datetime.timezone.utc)
-    _xray_50    = datetime.datetime(2025, 7, 22, 21, 40, tzinfo=datetime.timezone.utc)
-    _xray_Off   = datetime.datetime(2025, 7, 23, 10, 13, tzinfo=datetime.timezone.utc)
-    if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
-        ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
-    if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
-         ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
-    if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
-         ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
-    if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
-        ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
+# def mark_TID_times_COB_10Pct_1_2(ax,leg_loc=None):
+#     _xlim = ax.get_xlim()
+#     _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
+#     _ylim = ax.get_ylim()
+#     _chiller_on = datetime.datetime(2025, 7, 22, 14,  0, tzinfo=datetime.timezone.utc)
+#     _xray_10    = datetime.datetime(2025, 7, 22, 16, 23, tzinfo=datetime.timezone.utc)
+#     _xray_50    = datetime.datetime(2025, 7, 22, 21, 40, tzinfo=datetime.timezone.utc)
+#     _xray_Off   = datetime.datetime(2025, 7, 23, 10, 13, tzinfo=datetime.timezone.utc)
+#     if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
+#         ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
+#     if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
+#          ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
+#     if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
+#          ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
+#     if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
+#         ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
 
-    if leg_loc==False:
-        return
-    if leg_loc is None:
-        ax.legend()
-    elif 'right' in leg_loc:
-        offset = .05
-        if '+' in leg_loc:
-            _extra = leg_loc.split('+')[-1]
-            if _extra=='':
-                offset=0.10
-            else:
-                try:
-                    offset = int(_extra)/100.
-                except:
-                    offset = .10
-        ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
+#     if leg_loc==False:
+#         return
+#     if leg_loc is None:
+#         ax.legend()
+#     elif 'right' in leg_loc:
+#         offset = .05
+#         if '+' in leg_loc:
+#             _extra = leg_loc.split('+')[-1]
+#             if _extra=='':
+#                 offset=0.10
+#             else:
+#                 try:
+#                     offset = int(_extra)/100.
+#                 except:
+#                     offset = .10
+#         ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
 
 
-def mark_TID_times_COB_15Pct_4_4(ax,leg_loc=None):
-    _xlim = ax.get_xlim()
-    _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
-    _ylim = ax.get_ylim()
-    _COB_ = 'COB-15Pct-4-4'
-    _t = _xray_times[_COB_]['Cooldown'].astype(object)
-    _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray 10'].astype(object)
-    _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray 50'].astype(object)
-    _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    _t = _xray_times[_COB_]['Xray Off'].astype(object)
-    _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
-    if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
-        ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
-    if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
-         ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
-    if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
-         ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
-    if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
-        ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
+# def mark_TID_times_COB_15Pct_4_4(ax,leg_loc=None):
+#     _xlim = ax.get_xlim()
+#     _xlim = (num2date(_xlim[0]), num2date(_xlim[1]))
+#     _ylim = ax.get_ylim()
+#     _COB_ = 'COB-15Pct-4-4'
+#     _t = _xray_times[_COB_]['Cooldown'].astype(object)
+#     _chiller_on = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     _t = _xray_times[_COB_]['Xray 10'].astype(object)
+#     _xray_10    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     _t = _xray_times[_COB_]['Xray 50'].astype(object)
+#     _xray_50    = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     _t = _xray_times[_COB_]['Xray Off'].astype(object)
+#     _xray_Off   = datetime.datetime(_t.year, _t.month, _t.day, _t.hour, _t.minute, tzinfo=datetime.timezone.utc)
+#     if (_xlim[0]<_chiller_on) and (_chiller_on<_xlim[1]):
+#         ax.vlines(_chiller_on,_ylim[0], _ylim[1],linestyles='dashed',color='blue',linewidth=3,label='Chiller On')
+#     if (_xlim[0]<_xray_10) and (_xray_10<_xlim[1]):
+#          ax.vlines(_xray_10,_ylim[0], _ylim[1],linestyles='dashed',color='green',linewidth=3,label='X-ray on 10 mA')
+#     if (_xlim[0]<_xray_50) and (_xray_50<_xlim[1]):
+#          ax.vlines(_xray_50,_ylim[0], _ylim[1],linestyles='dashed',color='red',linewidth=3,label='X-ray on 50 mA')
+#     if (_xlim[0]<_xray_Off) and (_xray_Off<_xlim[1]):
+#         ax.vlines(_xray_Off,_ylim[0], _ylim[1],linestyles='dashed',color='black',linewidth=3,label='X-rays Off')
 
-    if leg_loc==False:
-        return
-    if leg_loc is None:
-        ax.legend()
-    elif 'right' in leg_loc:
-        offset = .05
-        if '+' in leg_loc:
-            _extra = leg_loc.split('+')[-1]
-            if _extra=='':
-                offset=0.10
-            else:
-                try:
-                    offset = int(_extra)/100.
-                except:
-                    offset = .10
-        ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
+#     if leg_loc==False:
+#         return
+#     if leg_loc is None:
+#         ax.legend()
+#     elif 'right' in leg_loc:
+#         offset = .05
+#         if '+' in leg_loc:
+#             _extra = leg_loc.split('+')[-1]
+#             if _extra=='':
+#                 offset=0.10
+#             else:
+#                 try:
+#                     offset = int(_extra)/100.
+#                 except:
+#                     offset = .10
+#         ax.legend(loc='upper left', bbox_to_anchor=(1+offset, 1.0))
 
 def plot_error_rate(d_tot,
                     voltages,
@@ -323,18 +364,28 @@ def plot_error_rate(d_tot,
                     markerstyle=None,
                     leg_offset='right+',
                     mark_TID_times=None,
-                    xlim = (None,None)):
+                    vsTID = False,
+                    xlim = (None,None),
+                    ylim = (None,None)
+                   ):
     if axis is None:
         fig,ax = plt.subplots(1,1)
     else:
         ax = axis
     for v in voltages:
         d = d_tot.loc[v]
-        e_rate = d[numerator].sum(axis=1)/d[denominator].sum(axis=1)*100
+        _x = d.timestamp
+        if vsTID:
+            if 'TID' in d.columns:
+                _x = d.TID
+            else:
+                print('No TID column')
+                return -1
+        e_rate = d[numerator].sum(axis=1)/d[denominator].sum(axis=1)
         if scatterplot:
-            ax.scatter(d.timestamp,e_rate, label=f'{v:.02f}V')
+            ax.scatter(_x,e_rate, label=f'{v:.02f}V')
         else:
-            ax.plot(d.timestamp,e_rate, label=f'{v:.02f}V',marker=markerstyle)
+            ax.plot(_x,e_rate, label=f'{v:.02f}V',marker=markerstyle)
     if bist:
         ax2 = ax.twinx()
         ax2.plot(bist_result.timestamps,bist_result.pp_passing_v,color='black',label='PP Bist',linestyle='dashed')
@@ -361,8 +412,9 @@ def plot_error_rate(d_tot,
     ax.set_title(title)
     if logy:
         ax.set_yscale('log')
+    ax.set_ylim(ylim[0],ylim[1])
     if not mark_TID_times is None:
-        mark_TID_times(ax,_COB_,leg_offset)
+        mark_TID_times(ax,_COB_,leg_offset, vsTID)
     if axis is None:
         return fig,ax
     else:
