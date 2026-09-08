@@ -38,15 +38,17 @@ def merge_jsons(fname, new_file_name):
     json.dump(data,open(new_file_name,'w'))
     return new_file_name
 
+chip='COB-10Pct-4-2'
+
+baseEOSdir = '/eos/user/d/dnoonan/September_2026_TID_Data'
+
 #location that Grace's cronjob copies data from hexacontroller onto eos
-unmergedEOSdir = '/eos/user/d/dnoonan/July_2025_TID_Data/data/'
+unmergedEOSdir = f'{baseEOSdir}/data/'
 #location that new merged files should be put
-mergedEOSdir = '/eos/user/d/dnoonan/July_2025_TID_Data/merged_jsons/'
+mergedEOSdir = f'{baseEOSdir}/merged_jsons/'
 
-chip='COB-10Pct-1-1'
-
-a = glob.glob(f'{unmergedEOSdir}/report_TID_chip_{chip}_ECOND_2025-*.json')
-b = glob.glob(f'{unmergedEOSdir}/report_TID_chip_{chip}_ECOND_2025-*_streamcompare_*.json')
+a = glob.glob(f'{unmergedEOSdir}/report_TID_chip_{chip}_ECOND_202*.json')
+b = glob.glob(f'{unmergedEOSdir}/report_TID_chip_{chip}_ECOND_202*_streamcompare_*.json')
 
 flist = list(set(a) - set(b) - set(skipped_file_list))
 flist.sort()
