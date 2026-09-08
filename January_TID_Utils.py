@@ -6,10 +6,90 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
 from matplotlib.patches import Rectangle
 
+import glob
+import pandas as pd
+
 import warnings
 warnings.filterwarnings("ignore",message="no explicit representation of timezones available for np.datetime64")
 
 import scipy
+
+def loadData(_COB_,filePath='/eos/user/d/dnoonan/January_2025_TID_Data/parsed_data'):
+    d_tot_list = []
+    d_bist_list = []
+    d_packets_list = []
+    d_settings_list = []
+
+    flist = glob.glob(f'{filePath}/{_COB_}/report_TID_chip_{_COB_}*totals.csv')
+    flist.sort()
+
+    for fname in flist:
+        try:
+            fname_totals = fname
+            fname_packets = fname.replace('_totals','_packets')
+            fname_bist = fname.replace('_totals','_bist')
+            fname_settings = fname.replace('_totals','_settings')
+            d_tot = pd.read_csv(fname_totals,index_col='voltages')
+            d_packet = pd.read_csv(fname_packets,index_col=0)
+            d_bist = pd.read_csv(fname_bist,index_col='voltages')
+            d_settings = pd.read_csv(fname_settings)#,index_col='voltages')
+
+            d_tot_list.append(d_tot)
+            d_bist_list.append(d_bist)
+            d_packets_list.append(d_packet)
+            d_settings_list.append(d_settings)
+        except:
+            continue
+    d_tot = pd.concat(d_tot_list)
+    d_packets = pd.concat(d_packets_list)
+    d_bist = pd.concat(d_bist_list)
+    d_settings = pd.concat(d_settings_list)
+
+    d_tot.timestamp = pd.to_datetime(d_tot.timestamp)
+    d_bist.timestamps = pd.to_datetime(d_bist.timestamps)
+
+    column_names = d_tot.columns
+    d_tot['n_captured_packets'] = d_tot['n_captured_bx']/3564*67.
+    d_tot = d_tot[list(column_names)[:3] + ['n_captured_packets'] + list(column_names)[3:]]
+
+    x = d_bist.copy(deep=True)
+    x['pp_passing_v'] = np.where((d_bist[['PPbist_1','PPbist_2','PPbist_3','PPbist_4']]==4095).all(axis=1), d_bist.index, 1.4)
+    x['ob_passing_v'] = np.where((d_bist[['OBbist_1','OBbist_2','OBbist_3','OBbist_4']]==4095).all(axis=1), d_bist.index, 1.4)
+    x['i2c_drop_v'] = np.where((d_bist[['PPbist_1','PPbist_2','PPbist_3','PPbist_4','OBbist_1','OBbist_2','OBbist_3','OBbist_4']]>=0).all(axis=1),d_bist.index,1.4)
+    d_summary = x.groupby('file').min()[['timestamps','pp_passing_v','ob_passing_v','i2c_drop_v']]
+
+    x = d_tot[['file','error_count','word_count','n_packets','n_captured_packets']].copy(deep=True)
+    x['error_free_voltage'] = np.where(x.error_count==0,x.index,1.35)
+    x['last_error_voltage'] = np.where(x.error_count>0,x.index,0)
+    x['error_rate_1e3'] = np.where((x.error_count/x.word_count)<1e-3,x.index,1.35)
+    x['error_rate_1e4'] = np.where((x.error_count/x.word_count)<1e-4,x.index,1.35)
+    x['error_rate_1e5'] = np.where((x.error_count/x.word_count)<1e-5,x.index,1.35)
+    x['error_rate_1e6'] = np.where((x.error_count/x.word_count)<1e-6,x.index,1.35)
+    x['error_rate_1e7'] = np.where((x.error_count/x.word_count)<1e-7,x.index,1.35)
+    x['error_rate_1e8'] = np.where((x.error_count/x.word_count)<1e-8,x.index,1.35)
+    x['error_rate_1e2_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-2,x.index,1.35)
+    x['error_rate_1e3_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-3,x.index,1.35)
+    x['error_rate_1e4_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-4,x.index,1.35)
+    x['error_rate_1e5_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-5,x.index,1.35)
+    x['error_rate_1e6_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-6,x.index,1.35)
+    x['error_rate_1e7_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-7,x.index,1.35)
+    d_summary['etx_error_free'] = x.groupby('file').min()[['error_free_voltage']]
+    d_summary['etx_last_error'] = x.groupby('file').max()[['last_error_voltage']]
+    d_summary['etx_error_1e3'] = x.groupby('file').min()[['error_rate_1e3']]
+    d_summary['etx_error_1e4'] = x.groupby('file').min()[['error_rate_1e4']]
+    d_summary['etx_error_1e5'] = x.groupby('file').min()[['error_rate_1e5']]
+    d_summary['etx_error_1e6'] = x.groupby('file').min()[['error_rate_1e6']]
+    d_summary['etx_error_1e7'] = x.groupby('file').min()[['error_rate_1e7']]
+    d_summary['etx_error_1e8'] = x.groupby('file').min()[['error_rate_1e8']]
+    d_summary['etx_error_1e2_packets'] = x.groupby('file').min()[['error_rate_1e2_packets']]
+    d_summary['etx_error_1e3_packets'] = x.groupby('file').min()[['error_rate_1e3_packets']]
+    d_summary['etx_error_1e4_packets'] = x.groupby('file').min()[['error_rate_1e4_packets']]
+    d_summary['etx_error_1e5_packets'] = x.groupby('file').min()[['error_rate_1e5_packets']]
+    d_summary['etx_error_1e6_packets'] = x.groupby('file').min()[['error_rate_1e6_packets']]
+    d_summary['etx_error_1e7_packets'] = x.groupby('file').min()[['error_rate_1e7_packets']]
+
+    d_packets.set_index(['file','voltages'],inplace=True)
+    return d_tot,d_packets,d_bist,d_settings,d_summary
 
 chiller_on = {'COB122':np.datetime64('2025-01-13 15:19'),
               'COB119':np.datetime64('2025-01-17 15:09'),

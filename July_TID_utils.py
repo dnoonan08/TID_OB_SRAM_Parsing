@@ -464,17 +464,35 @@ def loadData(_COB_,filePath='/eos/user/d/dnoonan/July_2025_TID_Data/parsed_data'
     x['i2c_drop_v'] = np.where((d_bist[['PPbist_1','PPbist_2','PPbist_3','PPbist_4','OBbist_1','OBbist_2','OBbist_3','OBbist_4']]>=0).all(axis=1),d_bist.index,1.4)
     d_summary = x.groupby('file').min()[['timestamps','pp_passing_v','ob_passing_v','i2c_drop_v']]
 
-    x = d_tot[['file','error_count','word_count']].copy(deep=True)
+    x = d_tot[['file','error_count','word_count','n_packets','n_captured_packets']].copy(deep=True)
     x['error_free_voltage'] = np.where(x.error_count==0,x.index,1.35)
     x['last_error_voltage'] = np.where(x.error_count>0,x.index,0)
+    x['error_rate_1e3'] = np.where((x.error_count/x.word_count)<1e-3,x.index,1.35)
     x['error_rate_1e4'] = np.where((x.error_count/x.word_count)<1e-4,x.index,1.35)
+    x['error_rate_1e5'] = np.where((x.error_count/x.word_count)<1e-5,x.index,1.35)
     x['error_rate_1e6'] = np.where((x.error_count/x.word_count)<1e-6,x.index,1.35)
+    x['error_rate_1e7'] = np.where((x.error_count/x.word_count)<1e-7,x.index,1.35)
     x['error_rate_1e8'] = np.where((x.error_count/x.word_count)<1e-8,x.index,1.35)
+    x['error_rate_1e2_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-2,x.index,1.35)
+    x['error_rate_1e3_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-3,x.index,1.35)
+    x['error_rate_1e4_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-4,x.index,1.35)
+    x['error_rate_1e5_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-5,x.index,1.35)
+    x['error_rate_1e6_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-6,x.index,1.35)
+    x['error_rate_1e7_packets'] = np.where((x.n_packets/x.n_captured_packets)<1e-7,x.index,1.35)
     d_summary['etx_error_free'] = x.groupby('file').min()[['error_free_voltage']]
     d_summary['etx_last_error'] = x.groupby('file').max()[['last_error_voltage']]
+    d_summary['etx_error_1e3'] = x.groupby('file').min()[['error_rate_1e3']]
     d_summary['etx_error_1e4'] = x.groupby('file').min()[['error_rate_1e4']]
+    d_summary['etx_error_1e5'] = x.groupby('file').min()[['error_rate_1e5']]
     d_summary['etx_error_1e6'] = x.groupby('file').min()[['error_rate_1e6']]
+    d_summary['etx_error_1e7'] = x.groupby('file').min()[['error_rate_1e7']]
     d_summary['etx_error_1e8'] = x.groupby('file').min()[['error_rate_1e8']]
+    d_summary['etx_error_1e2_packets'] = x.groupby('file').min()[['error_rate_1e2_packets']]
+    d_summary['etx_error_1e3_packets'] = x.groupby('file').min()[['error_rate_1e3_packets']]
+    d_summary['etx_error_1e4_packets'] = x.groupby('file').min()[['error_rate_1e4_packets']]
+    d_summary['etx_error_1e5_packets'] = x.groupby('file').min()[['error_rate_1e5_packets']]
+    d_summary['etx_error_1e6_packets'] = x.groupby('file').min()[['error_rate_1e6_packets']]
+    d_summary['etx_error_1e7_packets'] = x.groupby('file').min()[['error_rate_1e7_packets']]
 
     d_packets.set_index(['file','voltages'],inplace=True)
     return d_tot,d_packets,d_bist,d_settings,d_summary
