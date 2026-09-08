@@ -169,7 +169,7 @@ def checkErr(fname,i=0, drop_last_lc_readout = False, debug_print=False):
     else:
         y=df_tot[['voltages','n_captures','n_packets','n_captured_bx']].groupby('voltages').sum()
 
-    y[['word_count','error_count','timestamp','voltage_measured','current','temperature']]=df_tot.groupby('voltages')[['word_count','error_count','timestamp','voltage_measured','current','temperature']].first()
+    y[['word_count','error_count','timestamp','voltage_measured','current','temperature','current_no_activity']]=df_tot.groupby('voltages')[['word_count','error_count','timestamp','voltage_measured','current','temperature','current_no_activity']].first()
 
     if not df_packets is None:
         df_packets['isSpecialPacket'] = df_packets.packet_number.isin([3,4,11,27,32,33,49])
@@ -295,6 +295,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
     total_captures, total_packets, total_fifo_occupancy = [], [], []
     total_timestamp = []
     total_word_count, total_error_count = [],[]
+    total_current_no_activity = []
     total_mean_temperature, total_std_temperature, total_mean_voltage, total_std_voltage, total_mean_current, total_std_current = [],[],[],[],[],[]
     total_capture_length_bx = []
     total_voltages, total_file_names, total_test_number, total_test_name, total_lc_number = [],[],[],[],[]
@@ -336,7 +337,8 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
         t = _t['metadata']
         daq_nl1a    = np.array(t['DAQ_nL1A'])
         voltage = t['voltage']
-
+        current_no_activity = t['current_no_activity']
+        
         _n_erx = 12
         _n_etx = 6
         if 'active_erx' in t:
@@ -435,6 +437,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 total_file_names.append(file_name)
                 total_test_number.append(t_idx)
                 total_test_name.append(tname)
+                total_current_no_activity.append(current_no_activity)
                 total_lc_number.append(c)
                 total_n_erx.append(_n_erx)
                 total_n_etx.append(_n_etx)
@@ -493,6 +496,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                     total_file_names.append(file_name)
                     total_test_number.append(t_idx)
                     total_test_name.append(tname)
+                    total_current_no_activity.append(current_no_activity)
                     total_lc_number.append(c)
                     total_n_erx.append(_n_erx)
                     total_n_etx.append(_n_etx)
@@ -523,6 +527,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
                 total_file_names.append(file_name)
                 total_test_number.append(t_idx)
                 total_test_name.append(tname)
+                total_current_no_activity.append(current_no_activity)
                 total_lc_number.append(c)
                 total_n_erx.append(_n_erx)
                 total_n_etx.append(_n_etx)
@@ -628,6 +633,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             total_file_names.append(file_name)
             total_test_number.append(t_idx)
             total_test_name.append(tname)
+            total_current_no_activity.append(current_no_activity)
             total_lc_number.append(c)
             total_n_erx.append(_n_erx)
             total_n_etx.append(_n_etx)
@@ -700,6 +706,7 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
             'temperature':total_mean_temperature,
             'current':total_mean_current,
             'voltage_measured':total_mean_voltage,
+            'current_no_activity':total_current_no_activity,
             'temperature_std':total_std_temperature,
             'current_std':total_std_current,
             'voltage_std':total_std_voltage,
