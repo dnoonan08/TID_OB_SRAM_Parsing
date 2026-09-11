@@ -337,8 +337,10 @@ def parse_sram_errors_per_packet(file_name, sram_data, nl1a=67, return_lists = F
         t = _t['metadata']
         daq_nl1a    = np.array(t['DAQ_nL1A'])
         voltage = t['voltage']
-        current_no_activity = t['current_no_activity']
-        
+        try:
+            current_no_activity = t['current_no_activity']
+        except:
+            current_no_activity = -1
         _n_erx = 12
         _n_etx = 6
         if 'active_erx' in t:
